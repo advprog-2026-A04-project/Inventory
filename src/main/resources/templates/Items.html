@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Items</title>
+</head>
+<body>
+<h2>Items for Jastiper: <span th:text="${jastiperId}">demo</span></h2>
+
+<div th:if="${error}">
+    <p style="color:red" th:text="${error}">error</p>
+</div>
+
+<p>
+    <a th:href="@{/items/new(jastiperId=${jastiperId})}">Create New Item</a> |
+    <a th:href="@{/items/search}">Search by Product</a> |
+    <a th:href="@{/items/all(role='ADMIN')}">Admin View (dummy)</a>
+</p>
+
+<table border="1" cellpadding="6">
+    <tr>
+        <th>ID</th><th>Name</th><th>Description</th><th>Price</th><th>Stock</th>
+        <th>Origin</th><th>Purchase</th><th>Return</th><th>Actions</th><th>Reserve</th>
+    </tr>
+
+    <tr th:each="item : ${items}">
+        <td th:text="${item.id}"></td>
+        <td th:text="${item.name}"></td>
+        <td th:text="${item.description}"></td>
+        <td th:text="${item.price}"></td>
+        <td th:text="${item.stock}"></td>
+        <td th:text="${item.originCountry}"></td>
+        <td th:text="${item.purchaseDate}"></td>
+        <td th:text="${item.returnDate}"></td>
+
+        <td>
+            <a th:href="@{/items/{id}/edit(id=${item.id}, jastiperId=${jastiperId})}">Edit</a>
+            <form th:action="@{/items/{id}/delete(id=${item.id}, jastiperId=${jastiperId})}" method="post" style="display:inline">
+                <button type="submit">Delete</button>
+            </form>
+        </td>
+
+        <td>
+            <form th:action="@{/items/{id}/reserve(id=${item.id}, jastiperId=${jastiperId})}" method="post">
+                <input type="number" name="qty" value="1" min="1" style="width:60px"/>
+                <button type="submit">Reserve</button>
+            </form>
+        </td>
+    </tr>
+</table>
+
+</body>
+</html>

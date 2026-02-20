@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>All Items</title>
+</head>
+<body>
+<h2>All Items (Admin Dummy)</h2>
+
+<p><a href="/items/search">Search</a></p>
+
+<table border="1" cellpadding="6">
+  <tr>
+    <th>ID</th><th>Name</th><th>Jastiper</th><th>Price</th><th>Stock</th>
+  </tr>
+
+  <tr th:each="item : ${items}">
+    <td th:text="${item.id}"></td>
+    <td th:text="${item.name}"></td>
+    <td th:text="${item.jastiperId}"></td>
+    <td th:text="${item.price}"></td>
+    <td th:text="${item.stock}"></td>
+  </tr>
+</table>
+
+<p><a href="/items?jastiperId=demo">Back</a></p>
+</body>
+</html>
