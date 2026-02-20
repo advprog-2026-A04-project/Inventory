@@ -1,6 +1,7 @@
 plugins {
     java
     jacoco
+    pmd
     id("org.springframework.boot") version "3.5.11"
     id("io.spring.dependency-management") version "1.1.7"
 }
@@ -79,4 +80,19 @@ tasks.jacocoTestCoverageVerification {
 // optional: biar CI bisa pakai 1 command
 tasks.register("checkCoverage") {
     dependsOn("test", "jacocoTestReport", "jacocoTestCoverageVerification")
+}
+
+pmd {
+    toolVersion = "7.0.0"
+    isConsoleOutput = true
+    ruleSets = listOf()
+}
+
+tasks.withType<Pmd>().configureEach {
+    ruleSetFiles = files("config/pmd/ruleset.xml")
+    ignoreFailures = false
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
 }

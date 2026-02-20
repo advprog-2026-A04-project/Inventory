@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ruleset name="Inventory PMD Rules"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.github.io/pmd-7.0.0/ruleset_2_0_0.xsd">
+
+    <description>
+        Minimal PMD rules for group preparation.
+        Focus on catching bugs (errorprone). Avoid noisy style/final rules.
+    </description>
+
+    <!-- The most valuable set for small student projects -->
+    <rule ref="category/java/errorprone.xml">
+        <!-- Noisy for controller/view model attribute names -->
+        <exclude name="AvoidDuplicateLiterals"/>
+    </rule>
+
+</ruleset>
