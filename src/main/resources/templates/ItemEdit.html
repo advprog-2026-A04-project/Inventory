@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>Edit Item</title>
+</head>
+<body>
+<h2>Edit Item</h2>
+
+<form th:action="@{/items/{id}(id=${id}, jastiperId=${jastiperId})}" th:object="${req}" method="post">
+
+  <div>
+    <label>Description</label>
+    <textarea th:field="*{description}"></textarea>
+    <span style="color:red" th:if="${#fields.hasErrors('description')}" th:errors="*{description}"></span>
+  </div>
+
+  <div>
+    <label>Price</label>
+    <input type="number" step="0.01" th:field="*{price}" />
+    <span style="color:red" th:if="${#fields.hasErrors('price')}" th:errors="*{price}"></span>
+  </div>
+
+  <div>
+    <label>Stock</label>
+    <input type="number" th:field="*{stock}" />
+    <span style="color:red" th:if="${#fields.hasErrors('stock')}" th:errors="*{stock}"></span>
+  </div>
+
+  <button type="submit">Update</button>
+</form>
+
+<p><a th:href="@{/items(jastiperId=${jastiperId})}">Back</a></p>
+</body>
+</html>
