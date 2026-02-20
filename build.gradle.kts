@@ -2,6 +2,7 @@ plugins {
     java
     jacoco
     pmd
+    checkstyle
     id("org.springframework.boot") version "3.5.11"
     id("io.spring.dependency-management") version "1.1.7"
 }
@@ -91,6 +92,19 @@ pmd {
 tasks.withType<Pmd>().configureEach {
     ruleSetFiles = files("config/pmd/ruleset.xml")
     ignoreFailures = false
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
+}
+
+checkstyle {
+    toolVersion = "10.17.0"
+    configFile = file("config/checkstyle/checkstyle.xml")
+    isIgnoreFailures = false
+}
+
+tasks.withType<org.gradle.api.plugins.quality.Checkstyle>().configureEach {
     reports {
         xml.required.set(true)
         html.required.set(true)
