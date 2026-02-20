@@ -40,3 +40,16 @@ jobs:
 
       - name: Run Checkstyle Linter
         run: ./gradlew checkstyleMain
+
+      - name: Upload CI Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-reports-${{ github.run_number }}
+          if-no-files-found: warn
+          path: |
+            build/test-results/test/**
+            build/reports/tests/test/**
+            build/reports/jacoco/test/**
+            build/reports/pmd/**
+            build/reports/checkstyle/**
