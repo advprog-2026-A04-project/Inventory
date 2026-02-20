@@ -1,0 +1,44 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows: [ "CI" ]
+    types: [ completed ]
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-staging:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'staging' }}
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Dummy deploy to staging
+        run: |
+          echo "CI passed for staging."
+          echo "Deploying commit ${{ github.event.workflow_run.head_sha }} to STAGING environment."
+          echo "Target (dummy): https://staging.inventory.example.com"
+
+  deploy-production:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Dummy deploy to production
+        run: |
+          echo "CI passed for main."
+          echo "Deploying commit ${{ github.event.workflow_run.head_sha }} to PRODUCTION environment."
+          echo "Target (dummy): https://inventory.example.com"

@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main, staging ]
+    branches: [ main, staging, feat/inventory-katalog ]
   pull_request:
-    branches: [ main, staging ]
+    branches: [ main, staging, feat/inventory-katalog ]
 
 jobs:
   build:
@@ -19,6 +19,7 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '21'
+          cache: 'gradle'
 
       - name: Make gradlew executable
         run: chmod +x gradlew
@@ -33,7 +34,9 @@ jobs:
 
       - name: Verify Jacoco Coverage Threshold
         run: ./gradlew jacocoTestCoverageVerification
-        continue-on-error: true
 
       - name: Run PMD
         run: ./gradlew pmdMain
+
+      - name: Run Checkstyle Linter
+        run: ./gradlew checkstyleMain
