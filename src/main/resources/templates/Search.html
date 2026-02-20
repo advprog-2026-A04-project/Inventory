@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>Search Items</title>
+</head>
+<body>
+<h2>Search by Product Name</h2>
+
+<form th:action="@{/items/search}" method="get">
+  <input name="keyword" th:value="${keyword}" placeholder="keyword"/>
+  <button type="submit">Search</button>
+</form>
+
+<table border="1" cellpadding="6">
+  <tr>
+    <th>ID</th><th>Name</th><th>Jastiper</th><th>Price</th><th>Stock</th>
+  </tr>
+  <tr th:each="item : ${items}">
+    <td th:text="${item.id}"></td>
+    <td th:text="${item.name}"></td>
+    <td th:text="${item.jastiperId}"></td>
+    <td th:text="${item.price}"></td>
+    <td th:text="${item.stock}"></td>
+  </tr>
+</table>
+
+<p><a href="/items?jastiperId=demo">Back to demo list</a></p>
+</body>
+</html>
