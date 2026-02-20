@@ -37,3 +37,5 @@ Current integration path:
 
 Dummy end-to-end feature available:
 - `POST /items/{id}/reserve` reserves stock (decrease with stock guard), then result is reflected back in UI.
+
+![img.png](img.png)
