@@ -36,11 +36,11 @@ Configure protection for both `main` and `staging`:
   - CD is blocked unless CI succeeds (`workflow_run` + `conclusion == success`)
 
 ## Integration Feature (Frontend + Backend + DB)
-- Feature: Item create/list/reserve flow
-- Frontend: Thymeleaf pages in `src/main/resources/templates`
-- Backend: Spring MVC + Service in `src/main/java`
-- DB: MySQL runtime and H2 test profile
-- Integration test proof: `src/test/java/id/ac/ui/cs/advprog/inventory/integration/ItemFlowIntegrationTest.java`
+- Feature: Product create/search/reserve flow
+- Frontend: repository terpisah (React gateway client)
+- Backend: REST API + Service di `src/main/java`
+- DB: MySQL runtime dan H2 test profile
+- Integration test proof: `src/test/java/id/ac/ui/cs/advprog/inventory/integration/ProductFlowIntegrationTest.java`
 
 ## Pull Request Flow
 1. Create feature branch from `staging`.
