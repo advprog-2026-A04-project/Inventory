@@ -13,11 +13,10 @@ class InventoryApplicationMainTest {
     @Test
     void main_shouldDelegateToSpringApplicationRun() {
         String[] args = new String[]{"--spring.profiles.active=test"};
-        ConfigurableApplicationContext context = mock(ConfigurableApplicationContext.class);
 
         try (MockedStatic<SpringApplication> mocked = mockStatic(SpringApplication.class)) {
             mocked.when(() -> SpringApplication.run(InventoryApplication.class, args))
-                    .thenReturn(context);
+                    .thenReturn(mock(ConfigurableApplicationContext.class));
 
             InventoryApplication.main(args);
 
