@@ -1,16 +1,16 @@
 package id.ac.ui.cs.advprog.inventory.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import id.ac.ui.cs.advprog.inventory.dto.ProductCreateRequest;
-import id.ac.ui.cs.advprog.inventory.dto.ProductUpdateRequest;
-import id.ac.ui.cs.advprog.inventory.exception.WarConflictException;
-import id.ac.ui.cs.advprog.inventory.model.Product;
-import id.ac.ui.cs.advprog.inventory.service.ProductService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -18,18 +18,20 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import id.ac.ui.cs.advprog.inventory.dto.ProductCreateRequest;
+import id.ac.ui.cs.advprog.inventory.dto.ProductUpdateRequest;
+import id.ac.ui.cs.advprog.inventory.exception.WarConflictException;
+import id.ac.ui.cs.advprog.inventory.model.Product;
+import id.ac.ui.cs.advprog.inventory.service.ProductService;
 
 @WebMvcTest(ProductController.class)
 @Import(id.ac.ui.cs.advprog.inventory.config.SecurityConfig.class)
@@ -140,12 +142,26 @@ class ProductControllerTest {
     }
 
     @Test
+    @WithMockUser(username = USER_TITIPER, roles = "TITIPER")
+    void getProductById_shouldWorkForTitiper() throws Exception {
+        when(productService.getById(1L)).thenReturn(sampleProduct);
+
+        mockMvc.perform(get("/api/products/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value(PRODUCT_NAME_BAG))
+                .andExpect(jsonPath("$.jastiperId").value(USER_JASTIPER));
+    }
+
+    @Test
     @WithMockUser(username = USER_ADMIN, roles = "ADMIN")
     void adminUpdateProduct_shouldUpdateProduct() throws Exception {
         ProductUpdateRequest request = new ProductUpdateRequest();
+        request.setName(PRODUCT_NAME_BAG);
         request.setDescription("Updated");
         request.setPrice(new BigDecimal("150.00"));
         request.setStock(7);
+        request.setOriginLocation(LOCATION_JAPAN);
+        request.setPurchaseDate(LocalDate.of(2026, 3, 1));
 
         Product updated = Product.builder()
                 .id(1L)
@@ -158,7 +174,8 @@ class ProductControllerTest {
                 .jastiperId(USER_JASTIPER)
                 .version(2L)
                 .build();
-        when(productService.adminUpdateProduct(eq(1L), any(ProductUpdateRequest.class))).thenReturn(updated);
+        when(productService.adminUpdateProduct(eq(1L), any(ProductUpdateRequest.class)))
+                .thenReturn(updated);
 
         mockMvc.perform(put("/api/products/admin/1")
                         .contentType(MediaType.APPLICATION_JSON)

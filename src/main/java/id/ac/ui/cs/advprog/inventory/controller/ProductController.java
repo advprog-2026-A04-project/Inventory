@@ -1,12 +1,7 @@
 package id.ac.ui.cs.advprog.inventory.controller;
 
-import id.ac.ui.cs.advprog.inventory.dto.ProductCreateRequest;
-import id.ac.ui.cs.advprog.inventory.dto.ProductUpdateRequest;
-import id.ac.ui.cs.advprog.inventory.dto.ReserveStockRequest;
-import id.ac.ui.cs.advprog.inventory.model.Product;
-import id.ac.ui.cs.advprog.inventory.service.ProductService;
-import jakarta.validation.Valid;
 import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -21,6 +16,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+
+import id.ac.ui.cs.advprog.inventory.dto.ProductCreateRequest;
+import id.ac.ui.cs.advprog.inventory.dto.ProductUpdateRequest;
+import id.ac.ui.cs.advprog.inventory.dto.ReserveStockRequest;
+import id.ac.ui.cs.advprog.inventory.model.Product;
+import id.ac.ui.cs.advprog.inventory.service.ProductService;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/products")
@@ -75,6 +77,12 @@ public class ProductController {
     @GetMapping("/jastipers/{jastiperId}")
     public List<Product> searchByJastiper(@PathVariable String jastiperId) {
         return productService.listByJastiper(jastiperId);
+    }
+
+    @PreAuthorize(ROLE_BUYER_OR_HIGHER)
+    @GetMapping("/{productId}")
+    public Product getProductById(@PathVariable Long productId) {
+        return productService.getById(productId);
     }
 
     @PreAuthorize(ROLE_ADMIN)

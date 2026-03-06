@@ -114,8 +114,11 @@ public class ProductService {
     }
 
     private void applyUpdate(Product product, ProductUpdateRequest request) {
+        product.setName(request.getName());
         product.setDescription(request.getDescription());
         product.setPrice(request.getPrice());
         product.setStock(request.getStock());
+        product.setOriginLocation(request.getOriginLocation());
+        product.setPurchaseDate(request.getPurchaseDate());
     }
 }

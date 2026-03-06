@@ -1,5 +1,22 @@
 package id.ac.ui.cs.advprog.inventory.service;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.mockito.ArgumentMatchers.any;
+import org.mockito.Mockito;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import org.springframework.dao.OptimisticLockingFailureException;
+
 import id.ac.ui.cs.advprog.inventory.dto.ProductCreateRequest;
 import id.ac.ui.cs.advprog.inventory.dto.ProductUpdateRequest;
 import id.ac.ui.cs.advprog.inventory.exception.ForbiddenProductAccessException;
@@ -7,22 +24,6 @@ import id.ac.ui.cs.advprog.inventory.exception.InsufficientStockException;
 import id.ac.ui.cs.advprog.inventory.exception.WarConflictException;
 import id.ac.ui.cs.advprog.inventory.model.Product;
 import id.ac.ui.cs.advprog.inventory.repository.ProductRepository;
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-import org.springframework.dao.OptimisticLockingFailureException;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 class ProductServiceTest {
 
@@ -71,9 +72,12 @@ class ProductServiceTest {
     void updateOwnedProduct_shouldThrowWhenUserIsNotOwner() {
         Product existing = Product.builder().id(7L).jastiperId("other").build();
         ProductUpdateRequest request = new ProductUpdateRequest();
+        request.setName("Updated Name");
         request.setDescription("updated");
         request.setPrice(new BigDecimal("11"));
         request.setStock(2);
+        request.setOriginLocation("Korea");
+        request.setPurchaseDate(LocalDate.of(2026, 4, 1));
 
         when(productRepository.findById(7L)).thenReturn(Optional.of(existing));
 
