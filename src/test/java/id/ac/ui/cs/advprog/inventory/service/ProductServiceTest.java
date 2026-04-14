@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -59,7 +60,7 @@ class ProductServiceTest {
 
     @Test
     void listOwnedBy_shouldReturnProductsOfOwner() {
-        Product product = Product.builder().id(1L).jastiperId(JASTIPER_1).build();
+        Product product = Product.builder().id(UUID.randomUUID()).jastiperId(JASTIPER_1).build();
         when(productRepository.findAllByJastiperId(JASTIPER_1)).thenReturn(List.of(product));
 
         List<Product> products = productService.listOwnedBy(JASTIPER_1);
@@ -70,7 +71,8 @@ class ProductServiceTest {
 
     @Test
     void updateOwnedProduct_shouldThrowWhenUserIsNotOwner() {
-        Product existing = Product.builder().id(7L).jastiperId("other").build();
+        UUID productId = UUID.fromString("00000000-0000-0000-0000-000000000007");
+        Product existing = Product.builder().id(productId).jastiperId("other").build();
         ProductUpdateRequest request = new ProductUpdateRequest();
         request.setName("Updated Name");
         request.setDescription("updated");
@@ -79,31 +81,33 @@ class ProductServiceTest {
         request.setOriginLocation("Korea");
         request.setPurchaseDate(LocalDate.of(2026, 4, 1));
 
-        when(productRepository.findById(7L)).thenReturn(Optional.of(existing));
+        when(productRepository.findById(productId)).thenReturn(Optional.of(existing));
 
         assertThrows(
                 ForbiddenProductAccessException.class,
-                () -> productService.updateOwnedProduct(7L, request, JASTIPER_1)
+                () -> productService.updateOwnedProduct(productId, request, JASTIPER_1)
         );
         verify(productRepository, never()).save(any(Product.class));
     }
 
     @Test
     void reserveStock_shouldThrowWhenInsufficient() {
-        Product existing = Product.builder().id(3L).stock(1).jastiperId(JASTIPER_1).build();
-        when(productRepository.findById(3L)).thenReturn(Optional.of(existing));
+        UUID productId = UUID.fromString("00000000-0000-0000-0000-000000000003");
+        Product existing = Product.builder().id(productId).stock(1).jastiperId(JASTIPER_1).build();
+        when(productRepository.findById(productId)).thenReturn(Optional.of(existing));
 
-        assertThrows(InsufficientStockException.class, () -> productService.reserveStock(3L, 2));
+        assertThrows(InsufficientStockException.class, () -> productService.reserveStock(productId, 2));
         verify(productRepository, never()).saveAndFlush(any(Product.class));
     }
 
     @Test
     void reserveStock_shouldThrowWarConflictOnOptimisticFailure() {
-        Product existing = Product.builder().id(3L).stock(5).jastiperId(JASTIPER_1).build();
-        when(productRepository.findById(3L)).thenReturn(Optional.of(existing));
+        UUID productId = UUID.fromString("00000000-0000-0000-0000-000000000003");
+        Product existing = Product.builder().id(productId).stock(5).jastiperId(JASTIPER_1).build();
+        when(productRepository.findById(productId)).thenReturn(Optional.of(existing));
         when(productRepository.saveAndFlush(any(Product.class)))
                 .thenThrow(new OptimisticLockingFailureException("conflict"));
 
-        assertThrows(WarConflictException.class, () -> productService.reserveStock(3L, 1));
+        assertThrows(WarConflictException.class, () -> productService.reserveStock(productId, 1));
     }
 }
