@@ -60,7 +60,7 @@ class ProductFlowIntegrationTest {
                 .andReturn();
 
         JsonNode createBody = objectMapper.readTree(createResult.getResponse().getContentAsString());
-        long productId = createBody.get("id").asLong();
+        String productId = createBody.get("id").asText();
 
         mockMvc.perform(get("/api/products/search")
                         .with(SecurityMockMvcRequestPostProcessors.user("titiper1").roles("TITIPER"))
@@ -71,7 +71,7 @@ class ProductFlowIntegrationTest {
         mockMvc.perform(post("/api/products/" + productId + "/reserve")
                         .with(SecurityMockMvcRequestPostProcessors.user("titiper1").roles("TITIPER"))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"quantity\":1}"))
+                        .content("{\"productId\":\"" + productId + "\", \"quantity\":1}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.stock").value(1));
     }

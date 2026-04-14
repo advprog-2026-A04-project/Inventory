@@ -3,6 +3,7 @@ package id.ac.ui.cs.advprog.inventory.controller;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,6 +43,7 @@ class ProductControllerTest {
     private static final String USER_ADMIN = "admin1";
     private static final String PRODUCT_NAME_BAG = "Bag";
     private static final String LOCATION_JAPAN = "Japan";
+    private static final UUID PRODUCT_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
 
     @Autowired
     private MockMvc mockMvc;
@@ -57,7 +59,7 @@ class ProductControllerTest {
     @BeforeEach
     void setUp() {
         sampleProduct = Product.builder()
-                .id(1L)
+                .id(PRODUCT_ID)
                 .name(PRODUCT_NAME_BAG)
                 .description("Travel bag")
                 .price(new BigDecimal("120.00"))
@@ -144,9 +146,9 @@ class ProductControllerTest {
     @Test
     @WithMockUser(username = USER_TITIPER, roles = "TITIPER")
     void getProductById_shouldWorkForTitiper() throws Exception {
-        when(productService.getById(1L)).thenReturn(sampleProduct);
+        when(productService.getById(PRODUCT_ID)).thenReturn(sampleProduct);
 
-        mockMvc.perform(get("/api/products/1"))
+        mockMvc.perform(get("/api/products/" + PRODUCT_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value(PRODUCT_NAME_BAG))
                 .andExpect(jsonPath("$.jastiperId").value(USER_JASTIPER));
@@ -164,7 +166,7 @@ class ProductControllerTest {
         request.setPurchaseDate(LocalDate.of(2026, 3, 1));
 
         Product updated = Product.builder()
-                .id(1L)
+                .id(PRODUCT_ID)
                 .name(PRODUCT_NAME_BAG)
                 .description("Updated")
                 .price(new BigDecimal("150.00"))
@@ -174,10 +176,10 @@ class ProductControllerTest {
                 .jastiperId(USER_JASTIPER)
                 .version(2L)
                 .build();
-        when(productService.adminUpdateProduct(eq(1L), any(ProductUpdateRequest.class)))
+        when(productService.adminUpdateProduct(eq(PRODUCT_ID), any(ProductUpdateRequest.class)))
                 .thenReturn(updated);
 
-        mockMvc.perform(put("/api/products/admin/1")
+        mockMvc.perform(put("/api/products/admin/" + PRODUCT_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -188,11 +190,11 @@ class ProductControllerTest {
     @Test
     @WithMockUser(username = USER_TITIPER, roles = "TITIPER")
     void reserveStock_shouldReturnConflictWhenWarConflictOccurs() throws Exception {
-        when(productService.reserveStock(1L, 1)).thenThrow(new WarConflictException(1L));
+        when(productService.reserveStock(PRODUCT_ID, 1)).thenThrow(new WarConflictException(PRODUCT_ID));
 
-        mockMvc.perform(post("/api/products/1/reserve")
+        mockMvc.perform(post("/api/products/" + PRODUCT_ID + "/reserve")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"quantity\":1}"))
+                        .content("{\"productId\":\"" + PRODUCT_ID + "\", \"quantity\":1}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("WAR_CONFLICT"));
     }
@@ -200,9 +202,9 @@ class ProductControllerTest {
     @Test
     @WithMockUser(username = USER_ADMIN, roles = "ADMIN")
     void adminDeleteProduct_shouldReturnNoContent() throws Exception {
-        mockMvc.perform(delete("/api/products/admin/1"))
+        mockMvc.perform(delete("/api/products/admin/" + PRODUCT_ID))
                 .andExpect(status().isNoContent());
 
-        verify(productService).adminDeleteProduct(1L);
+        verify(productService).adminDeleteProduct(PRODUCT_ID);
     }
 }

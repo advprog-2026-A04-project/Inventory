@@ -13,6 +13,8 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
+
 @Service
 public class ProductService {
 
@@ -53,7 +55,7 @@ public class ProductService {
     }
 
     @Transactional
-    public Product updateOwnedProduct(Long productId, ProductUpdateRequest request, String actorId) {
+    public Product updateOwnedProduct(UUID productId, ProductUpdateRequest request, String actorId) {
         Product product = findProductOrThrow(productId);
         if (!product.getJastiperId().equals(actorId)) {
             throw new ForbiddenProductAccessException(productId, actorId);
@@ -63,7 +65,7 @@ public class ProductService {
     }
 
     @Transactional
-    public void deleteOwnedProduct(Long productId, String actorId) {
+    public void deleteOwnedProduct(UUID productId, String actorId) {
         Product product = findProductOrThrow(productId);
         if (!product.getJastiperId().equals(actorId)) {
             throw new ForbiddenProductAccessException(productId, actorId);
@@ -72,24 +74,25 @@ public class ProductService {
     }
 
     @Transactional
-    public Product adminUpdateProduct(Long productId, ProductUpdateRequest request) {
+    public Product adminUpdateProduct(UUID productId, ProductUpdateRequest request) {
         Product product = findProductOrThrow(productId);
         applyUpdate(product, request);
         return productRepository.save(product);
     }
 
     @Transactional
-    public void adminDeleteProduct(Long productId) {
+    public void adminDeleteProduct(UUID productId) {
         Product product = findProductOrThrow(productId);
         productRepository.delete(product);
     }
 
     @Transactional
-    public Product reserveStock(Long productId, int quantity) {
+    public Product reserveStock(UUID productId, int quantity) {
         if (quantity <= 0) {
             throw new IllegalArgumentException("quantity must be greater than 0");
         }
 
+        // findProductOrThrow acquired PESSIMISTIC_WRITE lock here
         Product product = findProductOrThrow(productId);
         int available = product.getStock();
         if (available < quantity) {
@@ -104,11 +107,11 @@ public class ProductService {
         }
     }
 
-    public Product getById(Long productId) {
+    public Product getById(UUID productId) {
         return findProductOrThrow(productId);
     }
 
-    private Product findProductOrThrow(Long productId) {
+    private Product findProductOrThrow(UUID productId) {
         return productRepository.findById(productId)
                 .orElseThrow(() -> new ProductNotFoundException(productId));
     }
