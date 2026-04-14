@@ -1,6 +1,7 @@
 package id.ac.ui.cs.advprog.inventory.controller;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -8,6 +9,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -48,7 +50,7 @@ public class ProductController {
 
     @PreAuthorize(ROLE_JASTIPER)
     @PutMapping("/{productId}")
-    public Product updateOwnProduct(@PathVariable Long productId,
+    public Product updateOwnProduct(@PathVariable UUID productId,
                                     @Valid @RequestBody ProductUpdateRequest request,
                                     Authentication authentication) {
         return productService.updateOwnedProduct(productId, request, authentication.getName());
@@ -57,7 +59,7 @@ public class ProductController {
     @PreAuthorize(ROLE_JASTIPER)
     @DeleteMapping("/{productId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteOwnProduct(@PathVariable Long productId, Authentication authentication) {
+    public void deleteOwnProduct(@PathVariable UUID productId, Authentication authentication) {
         productService.deleteOwnedProduct(productId, authentication.getName());
     }
 
@@ -81,7 +83,7 @@ public class ProductController {
 
     @PreAuthorize(ROLE_BUYER_OR_HIGHER)
     @GetMapping("/{productId}")
-    public Product getProductById(@PathVariable Long productId) {
+    public Product getProductById(@PathVariable UUID productId) {
         return productService.getById(productId);
     }
 
@@ -93,7 +95,7 @@ public class ProductController {
 
     @PreAuthorize(ROLE_ADMIN)
     @PutMapping("/admin/{productId}")
-    public Product adminUpdateProduct(@PathVariable Long productId,
+    public Product adminUpdateProduct(@PathVariable UUID productId,
                                       @Valid @RequestBody ProductUpdateRequest request) {
         return productService.adminUpdateProduct(productId, request);
     }
@@ -101,13 +103,26 @@ public class ProductController {
     @PreAuthorize(ROLE_ADMIN)
     @DeleteMapping("/admin/{productId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void adminDeleteProduct(@PathVariable Long productId) {
+    public void adminDeleteProduct(@PathVariable UUID productId) {
         productService.adminDeleteProduct(productId);
     }
 
     @PreAuthorize(ROLE_BUYER_OR_HIGHER)
     @PostMapping("/{productId}/reserve")
-    public Product reserveStock(@PathVariable Long productId, @Valid @RequestBody ReserveStockRequest request) {
+    public Product reserveStock(@PathVariable UUID productId, @Valid @RequestBody ReserveStockRequest request) {
         return productService.reserveStock(productId, request.quantity());
+    }
+
+    // Prompt 3: Inter-microservice communication
+    @PreAuthorize(ROLE_BUYER_OR_HIGHER)
+    @GetMapping("/inventory/{productId}")
+    public Product getInventoryDetail(@PathVariable UUID productId) {
+        return productService.getById(productId);
+    }
+
+    @PreAuthorize(ROLE_BUYER_OR_HIGHER)
+    @PatchMapping("/inventory/reduce-stock")
+    public Product reduceStock(@Valid @RequestBody ReserveStockRequest request) {
+        return productService.reserveStock(request.productId(), request.quantity());
     }
 }
