@@ -47,7 +47,7 @@ class ProductServiceConcurrencyTest {
                 .jastiperId("jastiper1")
                 .build());
 
-        int threads = 10;
+        int threads = 25;
         CountDownLatch ready = new CountDownLatch(threads);
         CountDownLatch start = new CountDownLatch(1);
         CountDownLatch done = new CountDownLatch(threads);
