@@ -92,8 +92,7 @@ public class ProductService {
             throw new IllegalArgumentException("quantity must be greater than 0");
         }
 
-        // findProductOrThrow acquired PESSIMISTIC_WRITE lock here
-        Product product = findProductOrThrow(productId);
+        Product product = findProductForUpdateOrThrow(productId);
         int available = product.getStock();
         if (available < quantity) {
             throw new InsufficientStockException(productId, quantity, available);
@@ -111,8 +110,24 @@ public class ProductService {
         return findProductOrThrow(productId);
     }
 
+    @Transactional
+    public Product restoreStock(UUID productId, int quantity) {
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("quantity must be greater than 0");
+        }
+
+        Product product = findProductForUpdateOrThrow(productId);
+        product.setStock(product.getStock() + quantity);
+        return productRepository.saveAndFlush(product);
+    }
+
     private Product findProductOrThrow(UUID productId) {
         return productRepository.findById(productId)
+                .orElseThrow(() -> new ProductNotFoundException(productId));
+    }
+
+    private Product findProductForUpdateOrThrow(UUID productId) {
+        return productRepository.findByIdForUpdate(productId)
                 .orElseThrow(() -> new ProductNotFoundException(productId));
     }
 

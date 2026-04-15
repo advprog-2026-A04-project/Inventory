@@ -69,7 +69,7 @@ class ProductFlowIntegrationTest {
                 .andExpect(jsonPath("$[0].name").value("Bag E2E"));
 
         mockMvc.perform(post("/api/products/" + productId + "/reserve")
-                        .with(SecurityMockMvcRequestPostProcessors.user("titiper1").roles("TITIPER"))
+                        .with(SecurityMockMvcRequestPostProcessors.user("order-service").roles("INTERNAL"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"productId\":\"" + productId + "\", \"quantity\":1}"))
                 .andExpect(status().isOk())
