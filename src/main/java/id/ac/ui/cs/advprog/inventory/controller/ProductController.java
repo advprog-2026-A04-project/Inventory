@@ -33,6 +33,7 @@ public class ProductController {
     private static final String ROLE_JASTIPER = "hasRole('JASTIPER')";
     private static final String ROLE_ADMIN = "hasRole('ADMIN')";
     private static final String ROLE_BUYER_OR_HIGHER = "hasAnyRole('TITIPER','JASTIPER','ADMIN')";
+    private static final String ROLE_INTERNAL = "hasRole('INTERNAL')";
 
     private final ProductService productService;
 
@@ -107,22 +108,27 @@ public class ProductController {
         productService.adminDeleteProduct(productId);
     }
 
-    @PreAuthorize(ROLE_BUYER_OR_HIGHER)
+    @PreAuthorize(ROLE_INTERNAL)
     @PostMapping("/{productId}/reserve")
     public Product reserveStock(@PathVariable UUID productId, @Valid @RequestBody ReserveStockRequest request) {
         return productService.reserveStock(productId, request.quantity());
     }
 
-    // Prompt 3: Inter-microservice communication
-    @PreAuthorize(ROLE_BUYER_OR_HIGHER)
+    @PreAuthorize(ROLE_INTERNAL)
     @GetMapping("/inventory/{productId}")
     public Product getInventoryDetail(@PathVariable UUID productId) {
         return productService.getById(productId);
     }
 
-    @PreAuthorize(ROLE_BUYER_OR_HIGHER)
+    @PreAuthorize(ROLE_INTERNAL)
     @PatchMapping("/inventory/reduce-stock")
     public Product reduceStock(@Valid @RequestBody ReserveStockRequest request) {
         return productService.reserveStock(request.productId(), request.quantity());
+    }
+
+    @PreAuthorize(ROLE_INTERNAL)
+    @PatchMapping("/inventory/restore-stock")
+    public Product restoreStock(@Valid @RequestBody ReserveStockRequest request) {
+        return productService.restoreStock(request.productId(), request.quantity());
     }
 }

@@ -9,7 +9,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.lang.NonNull;
 
 public interface ProductRepository extends JpaRepository<Product, UUID> {
 
@@ -19,7 +18,6 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     List<Product> searchByName(@Param("keyword") String keyword);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @NonNull
-    @Override
-    Optional<Product> findById(@NonNull UUID id);
+    @Query("SELECT p FROM Product p WHERE p.id = :id")
+    Optional<Product> findByIdForUpdate(@Param("id") UUID id);
 }

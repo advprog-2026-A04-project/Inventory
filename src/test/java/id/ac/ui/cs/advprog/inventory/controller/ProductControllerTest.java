@@ -17,6 +17,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -28,6 +29,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import id.ac.ui.cs.advprog.inventory.config.InternalTokenAuthenticationFilter;
+import id.ac.ui.cs.advprog.inventory.config.JwtAuthenticationFilter;
+import id.ac.ui.cs.advprog.inventory.config.JwtService;
 import id.ac.ui.cs.advprog.inventory.dto.ProductCreateRequest;
 import id.ac.ui.cs.advprog.inventory.dto.ProductUpdateRequest;
 import id.ac.ui.cs.advprog.inventory.exception.WarConflictException;
@@ -35,7 +39,17 @@ import id.ac.ui.cs.advprog.inventory.model.Product;
 import id.ac.ui.cs.advprog.inventory.service.ProductService;
 
 @WebMvcTest(ProductController.class)
-@Import(id.ac.ui.cs.advprog.inventory.config.SecurityConfig.class)
+@Import({
+        id.ac.ui.cs.advprog.inventory.config.SecurityConfig.class,
+        JwtService.class,
+        JwtAuthenticationFilter.class,
+        InternalTokenAuthenticationFilter.class
+})
+@TestPropertySource(properties = {
+        "app.jwt.secret=json-milestone-secret-json-milestone-secret",
+        "app.internal-token=json-internal-token",
+        "app.cors.allowed-origins=http://localhost:5173"
+})
 class ProductControllerTest {
 
     private static final String USER_JASTIPER = "jastiper1";
@@ -188,7 +202,7 @@ class ProductControllerTest {
     }
 
     @Test
-    @WithMockUser(username = USER_TITIPER, roles = "TITIPER")
+    @WithMockUser(username = "order-service", roles = "INTERNAL")
     void reserveStock_shouldReturnConflictWhenWarConflictOccurs() throws Exception {
         when(productService.reserveStock(PRODUCT_ID, 1)).thenThrow(new WarConflictException(PRODUCT_ID));
 

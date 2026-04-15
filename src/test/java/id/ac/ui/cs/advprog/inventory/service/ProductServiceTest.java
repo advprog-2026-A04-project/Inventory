@@ -94,7 +94,7 @@ class ProductServiceTest {
     void reserveStock_shouldThrowWhenInsufficient() {
         UUID productId = UUID.fromString("00000000-0000-0000-0000-000000000003");
         Product existing = Product.builder().id(productId).stock(1).jastiperId(JASTIPER_1).build();
-        when(productRepository.findById(productId)).thenReturn(Optional.of(existing));
+        when(productRepository.findByIdForUpdate(productId)).thenReturn(Optional.of(existing));
 
         assertThrows(InsufficientStockException.class, () -> productService.reserveStock(productId, 2));
         verify(productRepository, never()).saveAndFlush(any(Product.class));
@@ -104,7 +104,7 @@ class ProductServiceTest {
     void reserveStock_shouldThrowWarConflictOnOptimisticFailure() {
         UUID productId = UUID.fromString("00000000-0000-0000-0000-000000000003");
         Product existing = Product.builder().id(productId).stock(5).jastiperId(JASTIPER_1).build();
-        when(productRepository.findById(productId)).thenReturn(Optional.of(existing));
+        when(productRepository.findByIdForUpdate(productId)).thenReturn(Optional.of(existing));
         when(productRepository.saveAndFlush(any(Product.class)))
                 .thenThrow(new OptimisticLockingFailureException("conflict"));
 
