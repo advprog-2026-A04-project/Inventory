@@ -62,6 +62,21 @@ class ApiExceptionHandlerTest {
     }
 
     @Test
+    void shouldHandleValidationWithoutFieldError() throws Exception {
+        BeanPropertyBindingResult result = new BeanPropertyBindingResult(new Object(), "request");
+        Method method = SampleController.class.getDeclaredMethod("sample", String.class);
+        MethodArgumentNotValidException exception = new MethodArgumentNotValidException(
+                new org.springframework.core.MethodParameter(method, 0),
+                result
+        );
+
+        var response = handler.handleValidation(exception);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("Validation failed", response.getBody().message());
+    }
+
+    @Test
     void shouldHandleIllegalArgument() {
         var response = handler.handleIllegalArgument(new IllegalArgumentException("bad quantity"));
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
