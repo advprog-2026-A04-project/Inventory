@@ -73,11 +73,14 @@ tasks.jacocoTestReport {
 
 tasks.jacocoTestCoverageVerification {
     dependsOn(tasks.test)
+    classDirectories.setFrom(
+        files(classDirectories.files.map { fileTree(it) { exclude("**/InventoryApplication*") } })
+    )
 
     violationRules {
         rule {
             limit {
-                minimum = "0.50".toBigDecimal()
+                minimum = "0.90".toBigDecimal()
             }
         }
     }

@@ -19,22 +19,15 @@ import java.util.UUID;
 public class ProductService {
 
     private final ProductRepository productRepository;
+    private final ProductMutationMapper productMutationMapper;
 
-    public ProductService(ProductRepository productRepository) {
+    public ProductService(ProductRepository productRepository, ProductMutationMapper productMutationMapper) {
         this.productRepository = productRepository;
+        this.productMutationMapper = productMutationMapper;
     }
 
     public Product create(ProductCreateRequest request, String jastiperId) {
-        Product product = Product.builder()
-                .name(request.getName())
-                .description(request.getDescription())
-                .price(request.getPrice())
-                .stock(request.getStock())
-                .originLocation(request.getOriginLocation())
-                .purchaseDate(request.getPurchaseDate())
-                .jastiperId(jastiperId)
-                .build();
-        return productRepository.save(product);
+        return productRepository.save(productMutationMapper.fromCreateRequest(request, jastiperId));
     }
 
     public List<Product> listOwnedBy(String jastiperId) {
@@ -60,7 +53,7 @@ public class ProductService {
         if (!product.getJastiperId().equals(actorId)) {
             throw new ForbiddenProductAccessException(productId, actorId);
         }
-        applyUpdate(product, request);
+        productMutationMapper.applyUpdate(product, request);
         return productRepository.save(product);
     }
 
@@ -76,7 +69,7 @@ public class ProductService {
     @Transactional
     public Product adminUpdateProduct(UUID productId, ProductUpdateRequest request) {
         Product product = findProductOrThrow(productId);
-        applyUpdate(product, request);
+        productMutationMapper.applyUpdate(product, request);
         return productRepository.save(product);
     }
 
@@ -129,14 +122,5 @@ public class ProductService {
     private Product findProductForUpdateOrThrow(UUID productId) {
         return productRepository.findByIdForUpdate(productId)
                 .orElseThrow(() -> new ProductNotFoundException(productId));
-    }
-
-    private void applyUpdate(Product product, ProductUpdateRequest request) {
-        product.setName(request.getName());
-        product.setDescription(request.getDescription());
-        product.setPrice(request.getPrice());
-        product.setStock(request.getStock());
-        product.setOriginLocation(request.getOriginLocation());
-        product.setPurchaseDate(request.getPurchaseDate());
     }
 }
