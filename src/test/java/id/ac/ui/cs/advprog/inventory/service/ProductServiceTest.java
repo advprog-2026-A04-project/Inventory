@@ -263,4 +263,33 @@ class ProductServiceTest {
 
         assertThrows(ProductNotFoundException.class, () -> productService.getById(productId));
     }
+
+    @Test
+    void getByIdShouldReturnProductWhenPresent() {
+        UUID productId = UUID.randomUUID();
+        Product product = Product.builder().id(productId).jastiperId(JASTIPER_1).build();
+        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+
+        Product response = productService.getById(productId);
+
+        assertEquals(productId, response.getId());
+    }
+
+    @Test
+    void deleteOwnedProductShouldThrowWhenUserIsNotOwner() {
+        UUID productId = UUID.randomUUID();
+        Product existing = Product.builder().id(productId).jastiperId("other").build();
+        when(productRepository.findById(productId)).thenReturn(Optional.of(existing));
+
+        assertThrows(ForbiddenProductAccessException.class, () -> productService.deleteOwnedProduct(productId, JASTIPER_1));
+        verify(productRepository, never()).delete(existing);
+    }
+
+    @Test
+    void restoreStockShouldThrowWhenProductMissing() {
+        UUID productId = UUID.randomUUID();
+        when(productRepository.findByIdForUpdate(productId)).thenReturn(Optional.empty());
+
+        assertThrows(ProductNotFoundException.class, () -> productService.restoreStock(productId, 1));
+    }
 }

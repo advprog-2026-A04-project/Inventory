@@ -69,6 +69,9 @@ tasks.jacocoTestReport {
         html.required.set(true)
         csv.required.set(false)
     }
+    classDirectories.setFrom(
+        files(classDirectories.files.map { fileTree(it) { exclude("**/InventoryApplication*") } })
+    )
 }
 
 tasks.jacocoTestCoverageVerification {
@@ -80,6 +83,13 @@ tasks.jacocoTestCoverageVerification {
     violationRules {
         rule {
             limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = "0.90".toBigDecimal()
+            }
+            limit {
+                counter = "BRANCH"
+                value = "COVEREDRATIO"
                 minimum = "0.90".toBigDecimal()
             }
         }

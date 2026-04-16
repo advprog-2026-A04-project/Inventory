@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -34,6 +35,18 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
+    void shouldIgnoreRequestsWithNonBearerAuthorization() throws Exception {
+        JwtAuthenticationFilter filter = new JwtAuthenticationFilter(mock(JwtService.class));
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/api/products/search");
+        request.addHeader("Authorization", "Basic abc123");
+
+        filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+    }
+
+    @Test
     void shouldAuthenticateValidToken() throws Exception {
         String secret = "json-milestone-secret-json-milestone-secret";
         JwtService jwtService = new JwtService(secret);
@@ -52,6 +65,31 @@ class JwtAuthenticationFilterTest {
 
         assertNotNull(SecurityContextHolder.getContext().getAuthentication());
         assertEquals("2001", SecurityContextHolder.getContext().getAuthentication().getName());
+    }
+
+    @Test
+    void shouldSkipWhenAuthenticationAlreadyExists() throws Exception {
+        JwtAuthenticationFilter filter = new JwtAuthenticationFilter(mock(JwtService.class));
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("2001", null)
+        );
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/api/products/search");
+
+        filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+
+        assertEquals("2001", SecurityContextHolder.getContext().getAuthentication().getName());
+    }
+
+    @Test
+    void shouldSkipHealthEndpoint() throws Exception {
+        JwtAuthenticationFilter filter = new JwtAuthenticationFilter(mock(JwtService.class));
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/actuator/health");
+
+        filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
     }
 
     @Test
