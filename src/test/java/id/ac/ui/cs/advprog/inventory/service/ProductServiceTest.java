@@ -25,6 +25,7 @@ import id.ac.ui.cs.advprog.inventory.exception.InsufficientStockException;
 import id.ac.ui.cs.advprog.inventory.exception.ProductNotFoundException;
 import id.ac.ui.cs.advprog.inventory.exception.WarConflictException;
 import id.ac.ui.cs.advprog.inventory.model.Product;
+import id.ac.ui.cs.advprog.inventory.model.StockMutationType;
 import id.ac.ui.cs.advprog.inventory.repository.ProductRepository;
 
 class ProductServiceTest {
@@ -32,14 +33,16 @@ class ProductServiceTest {
     private static final String JASTIPER_1 = "jastiper1";
 
     private ProductRepository productRepository;
+    private StockMutationIdempotencyService stockMutationIdempotencyService;
     private ProductMutationMapper productMutationMapper;
     private ProductService productService;
 
     @BeforeEach
     void setUp() {
         productRepository = Mockito.mock(ProductRepository.class);
+        stockMutationIdempotencyService = Mockito.mock(StockMutationIdempotencyService.class);
         productMutationMapper = new ProductMutationMapper();
-        productService = new ProductService(productRepository, productMutationMapper);
+        productService = new ProductService(productRepository, stockMutationIdempotencyService, productMutationMapper);
     }
 
     @Test
@@ -291,5 +294,27 @@ class ProductServiceTest {
         when(productRepository.findByIdForUpdate(productId)).thenReturn(Optional.empty());
 
         assertThrows(ProductNotFoundException.class, () -> productService.restoreStock(productId, 1));
+    }
+
+    @Test
+    void reduceStockShouldBeIdempotentWhenRequestIdIsRetried() {
+        UUID productId = UUID.randomUUID();
+        Product existing = Product.builder().id(productId).stock(5).jastiperId(JASTIPER_1).build();
+        String orderId = "91";
+        String requestId = "reduce-91-P1";
+
+        when(stockMutationIdempotencyService.registerOrDetectDuplicate(productId, 2, orderId, requestId, StockMutationType.REDUCE))
+                .thenReturn(false)
+                .thenReturn(true);
+        when(productRepository.findByIdForUpdate(productId)).thenReturn(Optional.of(existing));
+        when(productRepository.saveAndFlush(existing)).thenReturn(existing);
+        when(productRepository.findById(productId)).thenReturn(Optional.of(existing));
+
+        Product first = productService.reduceStock(productId, 2, orderId, requestId);
+        Product second = productService.reduceStock(productId, 2, orderId, requestId);
+
+        assertEquals(3, first.getStock());
+        assertEquals(3, second.getStock());
+        verify(productRepository, times(1)).saveAndFlush(existing);
     }
 }
