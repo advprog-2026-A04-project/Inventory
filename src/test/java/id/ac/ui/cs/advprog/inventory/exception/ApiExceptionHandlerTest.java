@@ -83,6 +83,13 @@ class ApiExceptionHandlerTest {
         assertEquals("BAD_REQUEST", response.getBody().code());
     }
 
+    @Test
+    void shouldHandleIdempotencyConflict() {
+        var response = handler.handleIdempotencyConflict(new IdempotencyConflictException("request-1"));
+        assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+        assertEquals("IDEMPOTENCY_CONFLICT", response.getBody().code());
+    }
+
     @SuppressWarnings("unused")
     private static final class SampleController {
         public void sample(String payload) {

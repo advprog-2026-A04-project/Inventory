@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import id.ac.ui.cs.advprog.inventory.dto.ProductCreateRequest;
+import id.ac.ui.cs.advprog.inventory.dto.InventoryStockMutationRequest;
 import id.ac.ui.cs.advprog.inventory.dto.ProductUpdateRequest;
 import id.ac.ui.cs.advprog.inventory.dto.ReserveStockRequest;
 import id.ac.ui.cs.advprog.inventory.model.Product;
@@ -122,13 +123,23 @@ public class ProductController {
 
     @PreAuthorize(ROLE_INTERNAL)
     @PatchMapping("/inventory/reduce-stock")
-    public Product reduceStock(@Valid @RequestBody ReserveStockRequest request) {
-        return productService.reserveStock(request.productId(), request.quantity());
+    public Product reduceStock(@Valid @RequestBody InventoryStockMutationRequest request) {
+        return productService.reduceStock(
+                request.productId(),
+                request.quantity(),
+                request.orderId(),
+                request.requestId()
+        );
     }
 
     @PreAuthorize(ROLE_INTERNAL)
     @PatchMapping("/inventory/restore-stock")
-    public Product restoreStock(@Valid @RequestBody ReserveStockRequest request) {
-        return productService.restoreStock(request.productId(), request.quantity());
+    public Product restoreStock(@Valid @RequestBody InventoryStockMutationRequest request) {
+        return productService.restoreStock(
+                request.productId(),
+                request.quantity(),
+                request.orderId(),
+                request.requestId()
+        );
     }
 }

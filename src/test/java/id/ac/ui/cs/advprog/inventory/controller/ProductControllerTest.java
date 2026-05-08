@@ -293,11 +293,11 @@ class ProductControllerTest {
     @Test
     @WithMockUser(username = "order-service", roles = "INTERNAL")
     void reduceStockShouldDelegateToReserveStock() throws Exception {
-        when(productService.reserveStock(PRODUCT_ID, 2)).thenReturn(sampleProduct);
+        when(productService.reduceStock(PRODUCT_ID, 2, "91", "reduce-91-P1")).thenReturn(sampleProduct);
 
         mockMvc.perform(patch("/api/products/inventory/reduce-stock")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"productId\":\"" + PRODUCT_ID + "\", \"quantity\":2}"))
+                        .content("{\"productId\":\"" + PRODUCT_ID + "\", \"quantity\":2, \"orderId\":\"91\", \"requestId\":\"reduce-91-P1\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value(PRODUCT_NAME_BAG));
     }
@@ -305,13 +305,23 @@ class ProductControllerTest {
     @Test
     @WithMockUser(username = "order-service", roles = "INTERNAL")
     void restoreStockShouldDelegateToService() throws Exception {
-        when(productService.restoreStock(PRODUCT_ID, 2)).thenReturn(sampleProduct);
+        when(productService.restoreStock(PRODUCT_ID, 2, "91", "restore-91-P1")).thenReturn(sampleProduct);
 
         mockMvc.perform(patch("/api/products/inventory/restore-stock")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"productId\":\"" + PRODUCT_ID + "\", \"quantity\":2}"))
+                        .content("{\"productId\":\"" + PRODUCT_ID + "\", \"quantity\":2, \"orderId\":\"91\", \"requestId\":\"restore-91-P1\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value(PRODUCT_NAME_BAG));
+    }
+
+    @Test
+    @WithMockUser(username = "order-service", roles = "INTERNAL")
+    void reduceStockShouldRejectMissingRequestMetadata() throws Exception {
+        mockMvc.perform(patch("/api/products/inventory/reduce-stock")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"productId\":\"" + PRODUCT_ID + "\", \"quantity\":2}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
     }
 
     @Test
