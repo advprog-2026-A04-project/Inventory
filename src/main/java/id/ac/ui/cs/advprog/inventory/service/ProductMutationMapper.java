@@ -16,6 +16,7 @@ public class ProductMutationMapper {
                 .stock(request.getStock())
                 .originLocation(request.getOriginLocation())
                 .purchaseDate(request.getPurchaseDate())
+                .returnDate(request.getReturnDate())
                 .jastiperId(jastiperId)
                 .build();
     }
@@ -27,5 +28,6 @@ public class ProductMutationMapper {
         product.setStock(request.getStock());
         product.setOriginLocation(request.getOriginLocation());
         product.setPurchaseDate(request.getPurchaseDate());
+        product.setReturnDate(request.getReturnDate());
     }
 }

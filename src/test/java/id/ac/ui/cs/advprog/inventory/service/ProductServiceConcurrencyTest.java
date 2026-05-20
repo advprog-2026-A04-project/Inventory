@@ -44,6 +44,7 @@ class ProductServiceConcurrencyTest {
                 .stock(initialStock)
                 .originLocation("Japan")
                 .purchaseDate(LocalDate.of(2026, 3, 1))
+                .returnDate(LocalDate.of(2026, 3, 8))
                 .jastiperId("jastiper1")
                 .build());
 
