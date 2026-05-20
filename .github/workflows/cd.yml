@@ -1,44 +1,91 @@
 name: CD
 
 on:
-  workflow_run:
-    workflows: [ "CI" ]
-    types: [ completed ]
+  push:
+    branches:
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: read
+  id-token: write
+
+concurrency:
+  group: inventory-cd-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  SERVICE_NAME: inventory-api
+  REGION: us-central1
+  IMAGE_NAME: inventory-api
+  DEPLOYED_URL: https://inventory-api-383620816191.us-central1.run.app
+  APP_CORS_ALLOWED_ORIGINS: https://advprog-frontend-m25-m50-383620816191.us-central1.run.app,http://localhost:5173
+  SUPABASE_PROJECT_REF: egueoalveyfzltfxqvxw
 
 jobs:
-  deploy-staging:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'staging' }}
+  verify:
     runs-on: ubuntu-latest
-    environment: staging
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Dummy deploy to staging
-        run: |
-          echo "CI passed for staging."
-          echo "Deploying commit ${{ github.event.workflow_run.head_sha }} to STAGING environment."
-          echo "Target (dummy): https://staging.inventory.example.com"
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'gradle'
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Run verification
+        env:
+          SPRING_PROFILES_ACTIVE: test
+        run: ./gradlew clean test jacocoTestReport jacocoTestCoverageVerification pmdMain checkstyleMain --no-daemon
 
   deploy-production:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    needs: verify
     runs-on: ubuntu-latest
-    environment: production
+    environment:
+      name: production
+      url: ${{ env.DEPLOYED_URL }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Dummy deploy to production
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Setup Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure project
+        run: gcloud config set project "${{ secrets.GCP_PROJECT_ID }}"
+
+      - name: Build container image
+        run: gcloud builds submit --tag "gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" .
+
+      - name: Deploy to Cloud Run
         run: |
-          echo "CI passed for main."
-          echo "Deploying commit ${{ github.event.workflow_run.head_sha }} to PRODUCTION environment."
-          echo "Target (dummy): https://inventory.example.com"
+          gcloud run deploy "${{ env.SERVICE_NAME }}" \
+            --image "gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" \
+            --region "${{ env.REGION }}" \
+            --platform managed \
+            --allow-unauthenticated \
+            --port 8080 \
+            --set-env-vars "DB_URL=${{ secrets.DB_URL }}" \
+            --set-env-vars "DB_DRIVER=org.postgresql.Driver" \
+            --set-env-vars "DB_USERNAME=${{ secrets.DB_USERNAME }}" \
+            --set-env-vars "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" \
+            --set-env-vars "^|^APP_CORS_ALLOWED_ORIGINS=${{ env.APP_CORS_ALLOWED_ORIGINS }}" \
+            --set-env-vars "JWT_SECRET=${{ secrets.JWT_SECRET }}" \
+            --set-env-vars "INTERNAL_API_TOKEN=${{ secrets.INTERNAL_API_TOKEN }}" \
+            --set-labels "managed-by=github-actions,supabase-project=${{ env.SUPABASE_PROJECT_REF }}"
+
+      - name: Show service URL
+        run: gcloud run services describe "${{ env.SERVICE_NAME }}" --region "${{ env.REGION }}" --format "value(status.url)"

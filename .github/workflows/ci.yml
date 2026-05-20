@@ -4,6 +4,13 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: inventory-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -22,22 +29,10 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
-      - name: Run Tests
+      - name: Run verification
         env:
           SPRING_PROFILES_ACTIVE: test
-        run: ./gradlew test
-
-      - name: Generate Jacoco Coverage Report
-        run: ./gradlew jacocoTestReport
-
-      - name: Verify Jacoco Coverage Threshold
-        run: ./gradlew jacocoTestCoverageVerification
-
-      - name: Run PMD
-        run: ./gradlew pmdMain
-
-      - name: Run Checkstyle Linter
-        run: ./gradlew checkstyleMain
+        run: ./gradlew clean test jacocoTestReport jacocoTestCoverageVerification pmdMain checkstyleMain --no-daemon
 
       - name: Upload CI Reports
         if: always()
