@@ -22,8 +22,10 @@ import id.ac.ui.cs.advprog.inventory.dto.ProductCreateRequest;
 import id.ac.ui.cs.advprog.inventory.dto.ProductUpdateRequest;
 import id.ac.ui.cs.advprog.inventory.exception.ForbiddenProductAccessException;
 import id.ac.ui.cs.advprog.inventory.exception.InsufficientStockException;
+import id.ac.ui.cs.advprog.inventory.exception.ProductNotFoundException;
 import id.ac.ui.cs.advprog.inventory.exception.WarConflictException;
 import id.ac.ui.cs.advprog.inventory.model.Product;
+import id.ac.ui.cs.advprog.inventory.model.StockMutationType;
 import id.ac.ui.cs.advprog.inventory.repository.ProductRepository;
 
 class ProductServiceTest {
@@ -31,12 +33,16 @@ class ProductServiceTest {
     private static final String JASTIPER_1 = "jastiper1";
 
     private ProductRepository productRepository;
+    private StockMutationIdempotencyService stockMutationIdempotencyService;
+    private ProductMutationMapper productMutationMapper;
     private ProductService productService;
 
     @BeforeEach
     void setUp() {
         productRepository = Mockito.mock(ProductRepository.class);
-        productService = new ProductService(productRepository);
+        stockMutationIdempotencyService = Mockito.mock(StockMutationIdempotencyService.class);
+        productMutationMapper = new ProductMutationMapper();
+        productService = new ProductService(productRepository, stockMutationIdempotencyService, productMutationMapper);
     }
 
     @Test
@@ -48,6 +54,7 @@ class ProductServiceTest {
         request.setStock(5);
         request.setOriginLocation("Japan");
         request.setPurchaseDate(LocalDate.of(2026, 3, 1));
+        request.setReturnDate(LocalDate.of(2026, 3, 8));
 
         when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -80,6 +87,7 @@ class ProductServiceTest {
         request.setStock(2);
         request.setOriginLocation("Korea");
         request.setPurchaseDate(LocalDate.of(2026, 4, 1));
+        request.setReturnDate(LocalDate.of(2026, 4, 8));
 
         when(productRepository.findById(productId)).thenReturn(Optional.of(existing));
 
@@ -94,7 +102,7 @@ class ProductServiceTest {
     void reserveStock_shouldThrowWhenInsufficient() {
         UUID productId = UUID.fromString("00000000-0000-0000-0000-000000000003");
         Product existing = Product.builder().id(productId).stock(1).jastiperId(JASTIPER_1).build();
-        when(productRepository.findById(productId)).thenReturn(Optional.of(existing));
+        when(productRepository.findByIdForUpdate(productId)).thenReturn(Optional.of(existing));
 
         assertThrows(InsufficientStockException.class, () -> productService.reserveStock(productId, 2));
         verify(productRepository, never()).saveAndFlush(any(Product.class));
@@ -104,10 +112,214 @@ class ProductServiceTest {
     void reserveStock_shouldThrowWarConflictOnOptimisticFailure() {
         UUID productId = UUID.fromString("00000000-0000-0000-0000-000000000003");
         Product existing = Product.builder().id(productId).stock(5).jastiperId(JASTIPER_1).build();
-        when(productRepository.findById(productId)).thenReturn(Optional.of(existing));
+        when(productRepository.findByIdForUpdate(productId)).thenReturn(Optional.of(existing));
         when(productRepository.saveAndFlush(any(Product.class)))
                 .thenThrow(new OptimisticLockingFailureException("conflict"));
 
         assertThrows(WarConflictException.class, () -> productService.reserveStock(productId, 1));
+    }
+
+    @Test
+    void updateOwnedProduct_shouldApplyChangesForOwner() {
+        UUID productId = UUID.randomUUID();
+        Product existing = Product.builder()
+                .id(productId)
+                .name("Old")
+                .description("Old")
+                .price(new BigDecimal("10"))
+                .stock(1)
+                .originLocation("Japan")
+                .purchaseDate(LocalDate.of(2026, 1, 1))
+                .returnDate(LocalDate.of(2026, 1, 8))
+                .jastiperId(JASTIPER_1)
+                .build();
+        ProductUpdateRequest request = new ProductUpdateRequest();
+        request.setName("New");
+        request.setDescription("Updated");
+        request.setPrice(new BigDecimal("20"));
+        request.setStock(4);
+        request.setOriginLocation("Korea");
+        request.setPurchaseDate(LocalDate.of(2026, 2, 2));
+        request.setReturnDate(LocalDate.of(2026, 2, 9));
+        when(productRepository.findById(productId)).thenReturn(Optional.of(existing));
+        when(productRepository.save(existing)).thenReturn(existing);
+
+        Product updated = productService.updateOwnedProduct(productId, request, JASTIPER_1);
+
+        assertEquals("New", updated.getName());
+        assertEquals(4, updated.getStock());
+    }
+
+    @Test
+    void deleteOwnedProduct_shouldDeleteForOwner() {
+        UUID productId = UUID.randomUUID();
+        Product existing = Product.builder().id(productId).jastiperId(JASTIPER_1).build();
+        when(productRepository.findById(productId)).thenReturn(Optional.of(existing));
+
+        productService.deleteOwnedProduct(productId, JASTIPER_1);
+
+        verify(productRepository).delete(existing);
+    }
+
+    @Test
+    void adminUpdateProductShouldSaveChanges() {
+        UUID productId = UUID.randomUUID();
+        Product existing = Product.builder().id(productId).jastiperId("owner").build();
+        ProductUpdateRequest request = new ProductUpdateRequest();
+        request.setName("Admin Name");
+        request.setDescription("Admin update");
+        request.setPrice(new BigDecimal("25"));
+        request.setStock(6);
+        request.setOriginLocation("SG");
+        request.setPurchaseDate(LocalDate.of(2026, 6, 1));
+        request.setReturnDate(LocalDate.of(2026, 6, 8));
+        when(productRepository.findById(productId)).thenReturn(Optional.of(existing));
+        when(productRepository.save(existing)).thenReturn(existing);
+
+        Product updated = productService.adminUpdateProduct(productId, request);
+
+        assertEquals("Admin Name", updated.getName());
+        assertEquals(6, updated.getStock());
+    }
+
+    @Test
+    void adminDeleteProductShouldDeleteExistingProduct() {
+        UUID productId = UUID.randomUUID();
+        Product existing = Product.builder().id(productId).jastiperId("owner").build();
+        when(productRepository.findById(productId)).thenReturn(Optional.of(existing));
+
+        productService.adminDeleteProduct(productId);
+
+        verify(productRepository).delete(existing);
+    }
+
+    @Test
+    void searchByProductNameShouldTrimKeyword() {
+        when(productRepository.searchByName("bag")).thenReturn(List.of(Product.builder().name("bag").build()));
+
+        List<Product> result = productService.searchByProductName(" bag ");
+
+        assertEquals(1, result.size());
+        verify(productRepository).searchByName("bag");
+    }
+
+    @Test
+    void searchByProductNameShouldUseEmptyKeywordWhenNull() {
+        when(productRepository.searchByName("")).thenReturn(List.of());
+
+        productService.searchByProductName(null);
+
+        verify(productRepository).searchByName("");
+    }
+
+    @Test
+    void listByJastiperShouldDelegateToRepository() {
+        when(productRepository.findAllByJastiperId(JASTIPER_1)).thenReturn(List.of());
+
+        productService.listByJastiper(JASTIPER_1);
+
+        verify(productRepository).findAllByJastiperId(JASTIPER_1);
+    }
+
+    @Test
+    void listAllShouldDelegateToRepository() {
+        when(productRepository.findAll()).thenReturn(List.of());
+
+        productService.listAll();
+
+        verify(productRepository).findAll();
+    }
+
+    @Test
+    void reserveStockShouldReduceAvailableStock() {
+        UUID productId = UUID.randomUUID();
+        Product existing = Product.builder().id(productId).stock(5).jastiperId(JASTIPER_1).build();
+        when(productRepository.findByIdForUpdate(productId)).thenReturn(Optional.of(existing));
+        when(productRepository.saveAndFlush(existing)).thenReturn(existing);
+
+        Product updated = productService.reserveStock(productId, 2);
+
+        assertEquals(3, updated.getStock());
+    }
+
+    @Test
+    void reserveStockShouldRejectNonPositiveQuantity() {
+        assertThrows(IllegalArgumentException.class, () -> productService.reserveStock(UUID.randomUUID(), 0));
+    }
+
+    @Test
+    void restoreStockShouldIncreaseAvailableStock() {
+        UUID productId = UUID.randomUUID();
+        Product existing = Product.builder().id(productId).stock(1).jastiperId(JASTIPER_1).build();
+        when(productRepository.findByIdForUpdate(productId)).thenReturn(Optional.of(existing));
+        when(productRepository.saveAndFlush(existing)).thenReturn(existing);
+
+        Product updated = productService.restoreStock(productId, 3);
+
+        assertEquals(4, updated.getStock());
+    }
+
+    @Test
+    void restoreStockShouldRejectNonPositiveQuantity() {
+        assertThrows(IllegalArgumentException.class, () -> productService.restoreStock(UUID.randomUUID(), -1));
+    }
+
+    @Test
+    void getByIdShouldThrowWhenMissing() {
+        UUID productId = UUID.randomUUID();
+        when(productRepository.findById(productId)).thenReturn(Optional.empty());
+
+        assertThrows(ProductNotFoundException.class, () -> productService.getById(productId));
+    }
+
+    @Test
+    void getByIdShouldReturnProductWhenPresent() {
+        UUID productId = UUID.randomUUID();
+        Product product = Product.builder().id(productId).jastiperId(JASTIPER_1).build();
+        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+
+        Product response = productService.getById(productId);
+
+        assertEquals(productId, response.getId());
+    }
+
+    @Test
+    void deleteOwnedProductShouldThrowWhenUserIsNotOwner() {
+        UUID productId = UUID.randomUUID();
+        Product existing = Product.builder().id(productId).jastiperId("other").build();
+        when(productRepository.findById(productId)).thenReturn(Optional.of(existing));
+
+        assertThrows(ForbiddenProductAccessException.class, () -> productService.deleteOwnedProduct(productId, JASTIPER_1));
+        verify(productRepository, never()).delete(existing);
+    }
+
+    @Test
+    void restoreStockShouldThrowWhenProductMissing() {
+        UUID productId = UUID.randomUUID();
+        when(productRepository.findByIdForUpdate(productId)).thenReturn(Optional.empty());
+
+        assertThrows(ProductNotFoundException.class, () -> productService.restoreStock(productId, 1));
+    }
+
+    @Test
+    void reduceStockShouldBeIdempotentWhenRequestIdIsRetried() {
+        UUID productId = UUID.randomUUID();
+        Product existing = Product.builder().id(productId).stock(5).jastiperId(JASTIPER_1).build();
+        String orderId = "91";
+        String requestId = "reduce-91-P1";
+
+        when(stockMutationIdempotencyService.registerOrDetectDuplicate(productId, 2, orderId, requestId, StockMutationType.REDUCE))
+                .thenReturn(false)
+                .thenReturn(true);
+        when(productRepository.findByIdForUpdate(productId)).thenReturn(Optional.of(existing));
+        when(productRepository.saveAndFlush(existing)).thenReturn(existing);
+        when(productRepository.findById(productId)).thenReturn(Optional.of(existing));
+
+        Product first = productService.reduceStock(productId, 2, orderId, requestId);
+        Product second = productService.reduceStock(productId, 2, orderId, requestId);
+
+        assertEquals(3, first.getStock());
+        assertEquals(3, second.getStock());
+        verify(productRepository, times(1)).saveAndFlush(existing);
     }
 }

@@ -44,10 +44,11 @@ class ProductServiceConcurrencyTest {
                 .stock(initialStock)
                 .originLocation("Japan")
                 .purchaseDate(LocalDate.of(2026, 3, 1))
+                .returnDate(LocalDate.of(2026, 3, 8))
                 .jastiperId("jastiper1")
                 .build());
 
-        int threads = 10;
+        int threads = 25;
         CountDownLatch ready = new CountDownLatch(threads);
         CountDownLatch start = new CountDownLatch(1);
         CountDownLatch done = new CountDownLatch(threads);

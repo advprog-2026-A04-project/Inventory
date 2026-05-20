@@ -61,6 +61,9 @@ public class Product {
     @Column(nullable = false)
     private LocalDate purchaseDate;
 
+    @Column
+    private LocalDate returnDate;
+
     @Column(nullable = false)
     private String jastiperId;
 
