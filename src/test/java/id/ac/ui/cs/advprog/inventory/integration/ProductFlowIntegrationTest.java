@@ -48,7 +48,8 @@ class ProductFlowIntegrationTest {
                   "price": 99.50,
                   "stock": 2,
                   "originLocation": "Japan",
-                  "purchaseDate": "2026-03-01"
+                  "purchaseDate": "2026-03-01",
+                  "returnDate": "2026-03-08"
                 }
                 """;
 
@@ -86,7 +87,8 @@ class ProductFlowIntegrationTest {
                   "price": 150.00,
                   "stock": 3,
                   "originLocation": "Japan",
-                  "purchaseDate": "2026-03-01"
+                  "purchaseDate": "2026-03-01",
+                  "returnDate": "2026-03-08"
                 }
                 """;
 

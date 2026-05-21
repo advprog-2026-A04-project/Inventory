@@ -32,4 +32,7 @@ public class ProductCreateRequest {
 
     @NotNull
     private LocalDate purchaseDate;
+
+    @NotNull
+    private LocalDate returnDate;
 }

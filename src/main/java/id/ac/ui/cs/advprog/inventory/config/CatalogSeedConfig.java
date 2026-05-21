@@ -22,6 +22,7 @@ public class CatalogSeedConfig {
             }
 
             LocalDate purchaseDate = LocalDate.of(2026, 4, 1);
+            LocalDate returnDate = LocalDate.of(2026, 4, 8);
             LocalDateTime now = LocalDateTime.now();
 
             insertProduct(jdbcTemplate, product(
@@ -33,6 +34,7 @@ public class CatalogSeedConfig {
                     "United States",
                     "2001",
                     purchaseDate,
+                    returnDate,
                     now
             ));
             insertProduct(jdbcTemplate, product(
@@ -44,6 +46,7 @@ public class CatalogSeedConfig {
                     "United Kingdom",
                     "2001",
                     purchaseDate,
+                    returnDate,
                     now
             ));
             insertProduct(jdbcTemplate, product(
@@ -55,6 +58,7 @@ public class CatalogSeedConfig {
                     "Singapore",
                     "2002",
                     purchaseDate,
+                    returnDate,
                     now
             ));
             insertProduct(jdbcTemplate, product(
@@ -66,6 +70,7 @@ public class CatalogSeedConfig {
                     "Japan",
                     "2002",
                     purchaseDate,
+                    returnDate,
                     now
             ));
             insertProduct(jdbcTemplate, product(
@@ -77,6 +82,7 @@ public class CatalogSeedConfig {
                     "France",
                     "2003",
                     purchaseDate,
+                    returnDate,
                     now
             ));
             insertProduct(jdbcTemplate, product(
@@ -88,6 +94,7 @@ public class CatalogSeedConfig {
                     "South Korea",
                     "2003",
                     purchaseDate,
+                    returnDate,
                     now
             ));
         };
@@ -96,9 +103,9 @@ public class CatalogSeedConfig {
     private void insertProduct(JdbcTemplate jdbcTemplate, ProductSeed seed) {
         jdbcTemplate.update("""
                         INSERT INTO products (
-                            id, name, description, price, stock, origin_location, purchase_date,
+                            id, name, description, price, stock, origin_location, purchase_date, return_date,
                             jastiper_id, version, created_at, updated_at
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                 seed.id(),
                 seed.name(),
@@ -107,6 +114,7 @@ public class CatalogSeedConfig {
                 seed.stock(),
                 seed.originLocation(),
                 seed.purchaseDate(),
+                seed.returnDate(),
                 seed.jastiperId(),
                 0L,
                 Timestamp.valueOf(seed.createdAt()),
@@ -123,6 +131,7 @@ public class CatalogSeedConfig {
             String originLocation,
             String jastiperId,
             LocalDate purchaseDate,
+            LocalDate returnDate,
             LocalDateTime now
     ) {
         return new ProductSeed(
@@ -133,6 +142,7 @@ public class CatalogSeedConfig {
                 stock,
                 originLocation,
                 purchaseDate,
+                returnDate,
                 jastiperId,
                 now,
                 now
@@ -147,6 +157,7 @@ public class CatalogSeedConfig {
             int stock,
             String originLocation,
             LocalDate purchaseDate,
+            LocalDate returnDate,
             String jastiperId,
             LocalDateTime createdAt,
             LocalDateTime updatedAt

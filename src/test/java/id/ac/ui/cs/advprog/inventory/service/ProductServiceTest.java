@@ -54,6 +54,7 @@ class ProductServiceTest {
         request.setStock(5);
         request.setOriginLocation("Japan");
         request.setPurchaseDate(LocalDate.of(2026, 3, 1));
+        request.setReturnDate(LocalDate.of(2026, 3, 8));
 
         when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -86,6 +87,7 @@ class ProductServiceTest {
         request.setStock(2);
         request.setOriginLocation("Korea");
         request.setPurchaseDate(LocalDate.of(2026, 4, 1));
+        request.setReturnDate(LocalDate.of(2026, 4, 8));
 
         when(productRepository.findById(productId)).thenReturn(Optional.of(existing));
 
@@ -128,6 +130,7 @@ class ProductServiceTest {
                 .stock(1)
                 .originLocation("Japan")
                 .purchaseDate(LocalDate.of(2026, 1, 1))
+                .returnDate(LocalDate.of(2026, 1, 8))
                 .jastiperId(JASTIPER_1)
                 .build();
         ProductUpdateRequest request = new ProductUpdateRequest();
@@ -137,6 +140,7 @@ class ProductServiceTest {
         request.setStock(4);
         request.setOriginLocation("Korea");
         request.setPurchaseDate(LocalDate.of(2026, 2, 2));
+        request.setReturnDate(LocalDate.of(2026, 2, 9));
         when(productRepository.findById(productId)).thenReturn(Optional.of(existing));
         when(productRepository.save(existing)).thenReturn(existing);
 
@@ -168,6 +172,7 @@ class ProductServiceTest {
         request.setStock(6);
         request.setOriginLocation("SG");
         request.setPurchaseDate(LocalDate.of(2026, 6, 1));
+        request.setReturnDate(LocalDate.of(2026, 6, 8));
         when(productRepository.findById(productId)).thenReturn(Optional.of(existing));
         when(productRepository.save(existing)).thenReturn(existing);
 

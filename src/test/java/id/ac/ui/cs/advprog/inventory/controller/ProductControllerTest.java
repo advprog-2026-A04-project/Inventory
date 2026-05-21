@@ -81,6 +81,7 @@ class ProductControllerTest {
                 .stock(5)
                 .originLocation(LOCATION_JAPAN)
                 .purchaseDate(LocalDate.of(2026, 3, 1))
+                .returnDate(LocalDate.of(2026, 3, 8))
                 .jastiperId(USER_JASTIPER)
                 .version(1L)
                 .build();
@@ -96,6 +97,7 @@ class ProductControllerTest {
         request.setStock(5);
         request.setOriginLocation(LOCATION_JAPAN);
         request.setPurchaseDate(LocalDate.of(2026, 3, 1));
+        request.setReturnDate(LocalDate.of(2026, 3, 8));
 
         when(productService.create(any(ProductCreateRequest.class), eq(USER_JASTIPER)))
                 .thenReturn(sampleProduct);
@@ -105,6 +107,7 @@ class ProductControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value(PRODUCT_NAME_BAG))
+                .andExpect(jsonPath("$.returnDate").value("2026-03-08"))
                 .andExpect(jsonPath("$.jastiperId").value(USER_JASTIPER));
     }
 
@@ -118,6 +121,7 @@ class ProductControllerTest {
         request.setStock(5);
         request.setOriginLocation(LOCATION_JAPAN);
         request.setPurchaseDate(LocalDate.of(2026, 3, 1));
+        request.setReturnDate(LocalDate.of(2026, 3, 8));
 
         mockMvc.perform(post("/api/products")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -179,6 +183,7 @@ class ProductControllerTest {
         request.setStock(7);
         request.setOriginLocation(LOCATION_JAPAN);
         request.setPurchaseDate(LocalDate.of(2026, 3, 1));
+        request.setReturnDate(LocalDate.of(2026, 3, 8));
 
         Product updated = Product.builder()
                 .id(PRODUCT_ID)
@@ -188,6 +193,7 @@ class ProductControllerTest {
                 .stock(7)
                 .originLocation(LOCATION_JAPAN)
                 .purchaseDate(LocalDate.of(2026, 3, 1))
+                .returnDate(LocalDate.of(2026, 3, 8))
                 .jastiperId(USER_JASTIPER)
                 .version(2L)
                 .build();
@@ -233,6 +239,7 @@ class ProductControllerTest {
         request.setStock(3);
         request.setOriginLocation(LOCATION_JAPAN);
         request.setPurchaseDate(LocalDate.of(2026, 4, 1));
+        request.setReturnDate(LocalDate.of(2026, 4, 8));
         Product updated = Product.builder()
                 .id(PRODUCT_ID)
                 .name("Updated")
@@ -241,6 +248,7 @@ class ProductControllerTest {
                 .stock(3)
                 .originLocation(LOCATION_JAPAN)
                 .purchaseDate(LocalDate.of(2026, 4, 1))
+                .returnDate(LocalDate.of(2026, 4, 8))
                 .jastiperId(USER_JASTIPER)
                 .build();
         when(productService.updateOwnedProduct(eq(PRODUCT_ID), any(ProductUpdateRequest.class), eq(USER_JASTIPER)))
@@ -328,7 +336,8 @@ class ProductControllerTest {
                                   "price": 120.00,
                                   "stock": 0,
                                   "originLocation": "Japan",
-                                  "purchaseDate": "2026-03-01"
+                                  "purchaseDate": "2026-03-01",
+                                  "returnDate": "2026-03-08"
                                 }
                                 """))
                 .andExpect(status().isBadRequest())
