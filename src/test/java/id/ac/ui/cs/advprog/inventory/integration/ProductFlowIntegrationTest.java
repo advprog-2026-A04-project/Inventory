@@ -23,6 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@SuppressWarnings("PMD.AvoidDuplicateLiterals")
 class ProductFlowIntegrationTest {
 
     @Autowired
@@ -48,8 +49,7 @@ class ProductFlowIntegrationTest {
                   "price": 99.50,
                   "stock": 2,
                   "originLocation": "Japan",
-                  "purchaseDate": "2026-03-01",
-                  "returnDate": "2026-03-08"
+                  "purchaseDate": "2026-03-01"
                 }
                 """;
 
@@ -87,8 +87,7 @@ class ProductFlowIntegrationTest {
                   "price": 150.00,
                   "stock": 3,
                   "originLocation": "Japan",
-                  "purchaseDate": "2026-03-01",
-                  "returnDate": "2026-03-08"
+                  "purchaseDate": "2026-03-01"
                 }
                 """;
 

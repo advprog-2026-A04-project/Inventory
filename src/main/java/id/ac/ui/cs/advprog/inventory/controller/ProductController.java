@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import id.ac.ui.cs.advprog.inventory.dto.ProductCreateRequest;
 import id.ac.ui.cs.advprog.inventory.dto.InventoryStockMutationRequest;
+import id.ac.ui.cs.advprog.inventory.dto.ProductRatingRequest;
 import id.ac.ui.cs.advprog.inventory.dto.ProductUpdateRequest;
 import id.ac.ui.cs.advprog.inventory.dto.ReserveStockRequest;
 import id.ac.ui.cs.advprog.inventory.model.Product;
@@ -119,6 +120,21 @@ public class ProductController {
     @GetMapping("/inventory/{productId}")
     public Product getInventoryDetail(@PathVariable UUID productId) {
         return productService.getById(productId);
+    }
+
+    @PreAuthorize(ROLE_INTERNAL)
+    @PostMapping("/inventory/{productId}/completed-order")
+    public Product recordCompletedOrder(@PathVariable UUID productId) {
+        return productService.recordCompletedOrder(productId);
+    }
+
+    @PreAuthorize(ROLE_INTERNAL)
+    @PostMapping("/inventory/{productId}/rating")
+    public Product recordProductRating(
+            @PathVariable UUID productId,
+            @Valid @RequestBody ProductRatingRequest request
+    ) {
+        return productService.recordProductRating(productId, request.rating());
     }
 
     @PreAuthorize(ROLE_INTERNAL)

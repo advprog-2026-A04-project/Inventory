@@ -281,6 +281,75 @@ class ProductServiceTest {
     }
 
     @Test
+    void recordCompletedOrderShouldIncrementProductStatistic() {
+        UUID productId = UUID.randomUUID();
+        Product product = Product.builder().id(productId).successfulOrderCount(2).jastiperId(JASTIPER_1).build();
+        when(productRepository.findByIdForUpdate(productId)).thenReturn(Optional.of(product));
+        when(productRepository.save(product)).thenReturn(product);
+
+        Product response = productService.recordCompletedOrder(productId);
+
+        assertEquals(3, response.getSuccessfulOrderCount());
+    }
+
+    @Test
+    void recordCompletedOrderShouldHandleNullStatistic() {
+        UUID productId = UUID.randomUUID();
+        Product product = Product.builder().id(productId).successfulOrderCount(null).jastiperId(JASTIPER_1).build();
+        when(productRepository.findByIdForUpdate(productId)).thenReturn(Optional.of(product));
+        when(productRepository.save(product)).thenReturn(product);
+
+        Product response = productService.recordCompletedOrder(productId);
+
+        assertEquals(1, response.getSuccessfulOrderCount());
+    }
+
+    @Test
+    void recordProductRatingShouldIncrementRatingTotalAndCount() {
+        UUID productId = UUID.randomUUID();
+        Product product = Product.builder()
+                .id(productId)
+                .productRatingCount(1)
+                .productRatingTotal(4)
+                .jastiperId(JASTIPER_1)
+                .build();
+        when(productRepository.findByIdForUpdate(productId)).thenReturn(Optional.of(product));
+        when(productRepository.save(product)).thenReturn(product);
+
+        Product response = productService.recordProductRating(productId, 5);
+
+        assertEquals(2, response.getProductRatingCount());
+        assertEquals(9, response.getProductRatingTotal());
+    }
+
+    @Test
+    void recordProductRatingShouldHandleNullRatingCounters() {
+        UUID productId = UUID.randomUUID();
+        Product product = Product.builder()
+                .id(productId)
+                .productRatingCount(null)
+                .productRatingTotal(null)
+                .jastiperId(JASTIPER_1)
+                .build();
+        when(productRepository.findByIdForUpdate(productId)).thenReturn(Optional.of(product));
+        when(productRepository.save(product)).thenReturn(product);
+
+        Product response = productService.recordProductRating(productId, 4);
+
+        assertEquals(1, response.getProductRatingCount());
+        assertEquals(4, response.getProductRatingTotal());
+    }
+
+    @Test
+    void recordProductRatingShouldRejectRatingsOutsideAllowedRange() {
+        UUID productId = UUID.randomUUID();
+
+        assertThrows(IllegalArgumentException.class, () -> productService.recordProductRating(productId, 0));
+        assertThrows(IllegalArgumentException.class, () -> productService.recordProductRating(productId, 6));
+        verify(productRepository, never()).save(any(Product.class));
+    }
+
+    @Test
     void deleteOwnedProductShouldThrowWhenUserIsNotOwner() {
         UUID productId = UUID.randomUUID();
         Product existing = Product.builder().id(productId).jastiperId("other").build();
@@ -296,6 +365,32 @@ class ProductServiceTest {
         when(productRepository.findByIdForUpdate(productId)).thenReturn(Optional.empty());
 
         assertThrows(ProductNotFoundException.class, () -> productService.restoreStock(productId, 1));
+    }
+
+    @Test
+    void reduceStockShouldRejectMissingMutationMetadata() {
+        UUID productId = UUID.randomUUID();
+
+        assertThrows(IllegalArgumentException.class, () -> productService.reduceStock(productId, 1, null, "request"));
+        assertThrows(IllegalArgumentException.class, () -> productService.reduceStock(productId, 1, " ", "request"));
+        assertThrows(IllegalArgumentException.class, () -> productService.reduceStock(productId, 1, "order", null));
+        assertThrows(IllegalArgumentException.class, () -> productService.reduceStock(productId, 1, "order", " "));
+        verify(stockMutationIdempotencyService, never()).registerOrDetectDuplicate(any(), Mockito.anyInt(), any(), any(), any());
+    }
+
+    @Test
+    void reduceStockShouldThrowWhenIdempotentMutationHasInsufficientStock() {
+        UUID productId = UUID.randomUUID();
+        Product existing = Product.builder().id(productId).stock(1).jastiperId(JASTIPER_1).build();
+        String orderId = "insufficient-order";
+        String requestId = "insufficient-request";
+
+        when(stockMutationIdempotencyService.registerOrDetectDuplicate(productId, 2, orderId, requestId, StockMutationType.REDUCE))
+                .thenReturn(false);
+        when(productRepository.findByIdForUpdate(productId)).thenReturn(Optional.of(existing));
+
+        assertThrows(InsufficientStockException.class, () -> productService.reduceStock(productId, 2, orderId, requestId));
+        verify(productRepository, never()).saveAndFlush(any(Product.class));
     }
 
     @Test

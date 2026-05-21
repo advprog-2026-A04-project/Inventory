@@ -100,6 +100,25 @@ public class ProductService {
     }
 
     @Transactional
+    public Product recordCompletedOrder(UUID productId) {
+        Product product = findProductForUpdateOrThrow(productId);
+        product.setSuccessfulOrderCount(nonNull(product.getSuccessfulOrderCount()) + 1);
+        return productRepository.save(product);
+    }
+
+    @Transactional
+    public Product recordProductRating(UUID productId, int rating) {
+        if (rating < 1 || rating > 5) {
+            throw new IllegalArgumentException("rating must be between 1 and 5");
+        }
+
+        Product product = findProductForUpdateOrThrow(productId);
+        product.setProductRatingCount(nonNull(product.getProductRatingCount()) + 1);
+        product.setProductRatingTotal(nonNull(product.getProductRatingTotal()) + rating);
+        return productRepository.save(product);
+    }
+
+    @Transactional
     public Product restoreStock(UUID productId, int quantity) {
         validateQuantity(quantity);
         return applyStockRestoration(productId, quantity);
@@ -228,5 +247,9 @@ public class ProductService {
     private void softDelete(Product product) {
         product.setDeleted(true);
         productRepository.save(product);
+    }
+
+    private int nonNull(Integer value) {
+        return value == null ? 0 : value;
     }
 }

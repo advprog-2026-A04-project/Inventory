@@ -22,7 +22,6 @@ public class CatalogSeedConfig {
             }
 
             LocalDate purchaseDate = LocalDate.of(2026, 4, 1);
-            LocalDate returnDate = LocalDate.of(2026, 4, 8);
             LocalDateTime now = LocalDateTime.now();
 
             insertProduct(jdbcTemplate, product(
@@ -34,7 +33,6 @@ public class CatalogSeedConfig {
                     "United States",
                     "2001",
                     purchaseDate,
-                    returnDate,
                     now
             ));
             insertProduct(jdbcTemplate, product(
@@ -46,7 +44,6 @@ public class CatalogSeedConfig {
                     "United Kingdom",
                     "2001",
                     purchaseDate,
-                    returnDate,
                     now
             ));
             insertProduct(jdbcTemplate, product(
@@ -58,7 +55,6 @@ public class CatalogSeedConfig {
                     "Singapore",
                     "2002",
                     purchaseDate,
-                    returnDate,
                     now
             ));
             insertProduct(jdbcTemplate, product(
@@ -70,7 +66,6 @@ public class CatalogSeedConfig {
                     "Japan",
                     "2002",
                     purchaseDate,
-                    returnDate,
                     now
             ));
             insertProduct(jdbcTemplate, product(
@@ -82,7 +77,6 @@ public class CatalogSeedConfig {
                     "France",
                     "2003",
                     purchaseDate,
-                    returnDate,
                     now
             ));
             insertProduct(jdbcTemplate, product(
@@ -94,7 +88,6 @@ public class CatalogSeedConfig {
                     "South Korea",
                     "2003",
                     purchaseDate,
-                    returnDate,
                     now
             ));
         };
@@ -131,7 +124,6 @@ public class CatalogSeedConfig {
             String originLocation,
             String jastiperId,
             LocalDate purchaseDate,
-            LocalDate returnDate,
             LocalDateTime now
     ) {
         return new ProductSeed(
@@ -142,7 +134,7 @@ public class CatalogSeedConfig {
                 stock,
                 originLocation,
                 purchaseDate,
-                returnDate,
+                purchaseDate.plusDays(14),
                 jastiperId,
                 now,
                 now

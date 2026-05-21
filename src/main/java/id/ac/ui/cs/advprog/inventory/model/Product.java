@@ -71,6 +71,18 @@ public class Product {
     @Column
     private Boolean deleted = false;
 
+    @Builder.Default
+    @Column
+    private Integer successfulOrderCount = 0;
+
+    @Builder.Default
+    @Column
+    private Integer productRatingCount = 0;
+
+    @Builder.Default
+    @Column
+    private Integer productRatingTotal = 0;
+
     @Version
     private Long version;
 

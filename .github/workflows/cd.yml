@@ -88,6 +88,14 @@ jobs:
             --env-vars-file deploy.env \
             "${cloud_sql_args[@]}"
 
+      - name: Smoke test staging
+        run: |
+          url="$(gcloud run services describe "$CLOUD_RUN_SERVICE" \
+            --project "${{ secrets.GCP_PROJECT_ID }}" \
+            --region "$CLOUD_RUN_REGION" \
+            --format='value(status.url)')"
+          curl --fail --silent --show-error "$url/actuator/health"
+
   deploy-production:
     if: >-
       (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'production') ||
@@ -151,3 +159,11 @@ jobs:
             --max-instances=1 \
             --env-vars-file deploy.env \
             "${cloud_sql_args[@]}"
+
+      - name: Smoke test production
+        run: |
+          url="$(gcloud run services describe "$CLOUD_RUN_SERVICE" \
+            --project "${{ secrets.GCP_PROJECT_ID }}" \
+            --region "$CLOUD_RUN_REGION" \
+            --format='value(status.url)')"
+          curl --fail --silent --show-error "$url/actuator/health"
