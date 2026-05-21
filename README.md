@@ -51,7 +51,8 @@ Default local URL:
 - `JWT_SECRET`
 - `INTERNAL_API_TOKEN`
 
-Defaults are configured for an H2 file database under `/tmp`.
+Runtime H2 defaults have been removed. Set these variables to a PostgreSQL or
+Cloud SQL PostgreSQL connection before running the service outside tests.
 
 ## Test
 
@@ -64,52 +65,60 @@ Includes:
 - integration flow tests
 - stock reservation concurrency coverage
 
-Full CI-equivalent verification:
+## Cloud Run Deploy
+
+### Local deploy
 
 ```bash
-./gradlew clean test jacocoTestReport jacocoTestCoverageVerification pmdMain checkstyleMain
+gcloud run deploy inventory-api --source . --region us-central1 --allow-unauthenticated --max-instances=1 \
+  --set-env-vars APP_CORS_ALLOWED_ORIGINS=https://advprog-frontend-m25-m50-383620816191.us-central1.run.app \
+  --set-env-vars DB_URL=<postgres-or-cloud-sql-jdbc-url> \
+  --set-env-vars DB_USERNAME=<db-user> \
+  --set-env-vars DB_PASSWORD=<db-password> \
+  --set-env-vars JWT_SECRET=<shared-jwt-secret> \
+  --set-env-vars INTERNAL_API_TOKEN=<shared-internal-token>
 ```
 
-## CI/CD
+### GitHub Actions deploy
 
-GitHub Actions are configured for:
-- CI on every push and pull request
-- Cloud Run production deploy on push to `main`
-- manual production deploy with `workflow_dispatch`
+The CD workflow uses GitHub Actions OIDC with Google Cloud Workload Identity Federation. Do not use `GCP_SA_KEY`: JSON service account key creation is intentionally blocked by Google Cloud organization policy through `constraints/iam.disableServiceAccountKeyCreation`, and long-lived service account JSON keys should not be recreated or committed.
 
-Production target:
-- Cloud Run service: `inventory-api`
-- Region: `us-central1`
-- URL: `https://inventory-api-383620816191.us-central1.run.app`
-- Supabase project ref: `egueoalveyfzltfxqvxw`
+Required GitHub repository or environment secrets:
 
-Required GitHub Secrets:
 - `GCP_PROJECT_ID`
-- `GCP_SA_KEY`
+- `GCP_WORKLOAD_IDENTITY_PROVIDER`
+- `GCP_SERVICE_ACCOUNT`
+- `APP_CORS_ALLOWED_ORIGINS`
 - `DB_URL`
 - `DB_USERNAME`
 - `DB_PASSWORD`
 - `JWT_SECRET`
 - `INTERNAL_API_TOKEN`
 
-`DB_URL` must be the Supabase PostgreSQL JDBC URL with SSL enabled, for example:
+The workflow grants GitHub Actions OIDC access through:
 
-```text
-jdbc:postgresql://<supabase-host>:5432/postgres?sslmode=require
+```yaml
+permissions:
+  contents: read
+  id-token: write
 ```
 
-## Cloud Run Deploy
+The Google Cloud authentication step uses:
 
-```bash
-gcloud run deploy inventory-api --source . --region us-central1 --allow-unauthenticated \
-  --set-env-vars DB_URL=<supabase-jdbc-url> \
-  --set-env-vars DB_DRIVER=org.postgresql.Driver \
-  --set-env-vars DB_USERNAME=<supabase-db-user> \
-  --set-env-vars DB_PASSWORD=<supabase-db-password> \
-  --set-env-vars APP_CORS_ALLOWED_ORIGINS=https://advprog-frontend-m25-m50-383620816191.us-central1.run.app,http://localhost:5173 \
-  --set-env-vars JWT_SECRET=<shared-jwt-secret> \
-  --set-env-vars INTERNAL_API_TOKEN=<shared-internal-token>
+```yaml
+- name: Authenticate to Google Cloud
+  uses: google-github-actions/auth@v3
+  with:
+    project_id: ${{ secrets.GCP_PROJECT_ID }}
+    workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+    service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 ```
+
+Current project values used by the demo deployment:
+
+- `GCP_PROJECT_ID=project-58e5335e-d6a4-4499-b08`
+- `GCP_WORKLOAD_IDENTITY_PROVIDER=projects/383620816191/locations/global/workloadIdentityPools/github-pool/providers/github-provider`
+- `GCP_SERVICE_ACCOUNT=cloudrun-deployer@project-58e5335e-d6a4-4499-b08.iam.gserviceaccount.com`
 
 ## Notes
 

@@ -61,7 +61,7 @@ public class Product {
     @Column(nullable = false)
     private LocalDate purchaseDate;
 
-    @Column
+    @Column(nullable = false)
     private LocalDate returnDate;
 
     @Column(nullable = false)

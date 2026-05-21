@@ -35,3 +35,9 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Local credentials ###
+gha-creds-*.json
+key.json
+sa-key.json
+service-account*.json
