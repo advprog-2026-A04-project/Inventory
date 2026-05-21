@@ -5,31 +5,38 @@ import id.ac.ui.cs.advprog.inventory.model.StockMutationRecord;
 import id.ac.ui.cs.advprog.inventory.model.StockMutationType;
 import id.ac.ui.cs.advprog.inventory.repository.StockMutationRecordRepository;
 import java.time.Instant;
-import java.sql.Timestamp;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class StockMutationIdempotencyService {
 
     private final StockMutationRecordRepository stockMutationRecordRepository;
-    private final JdbcTemplate jdbcTemplate;
 
-    public StockMutationIdempotencyService(
-            StockMutationRecordRepository stockMutationRecordRepository,
-            JdbcTemplate jdbcTemplate
-    ) {
+    public StockMutationIdempotencyService(StockMutationRecordRepository stockMutationRecordRepository) {
         this.stockMutationRecordRepository = stockMutationRecordRepository;
-        this.jdbcTemplate = jdbcTemplate;
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public boolean registerOrDetectDuplicate(
+    @Transactional(readOnly = true)
+    public boolean isDuplicate(
+            UUID productId,
+            int quantity,
+            String orderId,
+            String requestId,
+            StockMutationType mutationType
+    ) {
+        return stockMutationRecordRepository.findByRequestId(requestId)
+                .map(existing -> {
+                    assertSameMutation(existing, productId, quantity, orderId, mutationType);
+                    return true;
+                })
+                .orElse(false);
+    }
+
+    public void recordApplied(
             UUID productId,
             int quantity,
             String orderId,
@@ -37,25 +44,16 @@ public class StockMutationIdempotencyService {
             StockMutationType mutationType
     ) {
         try {
-            jdbcTemplate.update(
-                    """
-                    insert into stock_mutation_records
-                    (request_id, order_id, product_id, quantity, mutation_type, applied_at)
-                    values (?, ?, ?, ?, ?, ?)
-                    """,
-                    requestId,
-                    orderId,
-                    productId,
-                    quantity,
-                    mutationType.name(),
-                    Timestamp.from(Instant.now())
-            );
-            return false;
+            stockMutationRecordRepository.saveAndFlush(StockMutationRecord.builder()
+                    .requestId(requestId)
+                    .orderId(orderId)
+                    .productId(productId)
+                    .quantity(quantity)
+                    .mutationType(mutationType)
+                    .appliedAt(Instant.now())
+                    .build());
         } catch (DataIntegrityViolationException exception) {
-            StockMutationRecord existing = stockMutationRecordRepository.findByRequestId(requestId)
-                    .orElseThrow(() -> exception);
-            assertSameMutation(existing, productId, quantity, orderId, mutationType);
-            return true;
+            throw new IdempotencyConflictException(requestId);
         }
     }
 

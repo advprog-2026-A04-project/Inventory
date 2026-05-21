@@ -308,7 +308,8 @@ class ProductServiceTest {
         String orderId = "91";
         String requestId = "reduce-91-P1";
 
-        when(stockMutationIdempotencyService.registerOrDetectDuplicate(productId, 2, orderId, requestId, StockMutationType.REDUCE))
+        when(stockMutationIdempotencyService.isDuplicate(productId, 2, orderId, requestId, StockMutationType.REDUCE))
+                .thenReturn(false)
                 .thenReturn(false)
                 .thenReturn(true);
         when(productRepository.findByIdForUpdate(productId)).thenReturn(Optional.of(existing));
@@ -321,5 +322,25 @@ class ProductServiceTest {
         assertEquals(3, first.getStock());
         assertEquals(3, second.getStock());
         verify(productRepository, times(1)).saveAndFlush(existing);
+        verify(stockMutationIdempotencyService, times(1))
+                .recordApplied(productId, 2, orderId, requestId, StockMutationType.REDUCE);
+    }
+
+    @Test
+    void reduceStockShouldNotRecordIdempotencyWhenStockMutationFails() {
+        UUID productId = UUID.randomUUID();
+        Product existing = Product.builder().id(productId).stock(1).jastiperId(JASTIPER_1).build();
+        String orderId = "92";
+        String requestId = "reduce-92-P1";
+
+        when(stockMutationIdempotencyService.isDuplicate(productId, 2, orderId, requestId, StockMutationType.REDUCE))
+                .thenReturn(false)
+                .thenReturn(false);
+        when(productRepository.findByIdForUpdate(productId)).thenReturn(Optional.of(existing));
+
+        assertThrows(InsufficientStockException.class, () -> productService.reduceStock(productId, 2, orderId, requestId));
+
+        verify(stockMutationIdempotencyService, never())
+                .recordApplied(productId, 2, orderId, requestId, StockMutationType.REDUCE);
     }
 }

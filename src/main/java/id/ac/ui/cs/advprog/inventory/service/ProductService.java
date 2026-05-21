@@ -172,8 +172,20 @@ public class ProductService {
         }
 
         Product product = findProductForUpdateOrThrow(productId);
+        if (isDuplicateMutation(productId, quantity, orderId, requestId, mutationType)) {
+            log.info(
+                    "Skipping duplicate inventory mutation after lock requestId={} orderId={} productId={} type={}",
+                    requestId,
+                    orderId,
+                    productId,
+                    mutationType
+            );
+            return product;
+        }
+
         mutation.accept(product);
         Product saved = saveProduct(productId, product);
+        stockMutationIdempotencyService.recordApplied(productId, quantity, orderId, requestId, mutationType);
         log.info(
                 "Applied inventory mutation requestId={} orderId={} productId={} type={} quantity={} resultingStock={}",
                 requestId,
@@ -193,7 +205,7 @@ public class ProductService {
             String requestId,
             StockMutationType mutationType
     ) {
-        return stockMutationIdempotencyService.registerOrDetectDuplicate(
+        return stockMutationIdempotencyService.isDuplicate(
                 productId,
                 quantity,
                 orderId,
