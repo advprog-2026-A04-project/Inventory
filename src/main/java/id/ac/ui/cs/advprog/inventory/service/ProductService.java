@@ -3,7 +3,6 @@ package id.ac.ui.cs.advprog.inventory.service;
 import id.ac.ui.cs.advprog.inventory.dto.ProductCreateRequest;
 import id.ac.ui.cs.advprog.inventory.dto.ProductUpdateRequest;
 import id.ac.ui.cs.advprog.inventory.exception.ForbiddenProductAccessException;
-import id.ac.ui.cs.advprog.inventory.exception.IdempotencyConflictException;
 import id.ac.ui.cs.advprog.inventory.exception.InsufficientStockException;
 import id.ac.ui.cs.advprog.inventory.exception.ProductNotFoundException;
 import id.ac.ui.cs.advprog.inventory.exception.WarConflictException;
@@ -11,14 +10,13 @@ import id.ac.ui.cs.advprog.inventory.model.Product;
 import id.ac.ui.cs.advprog.inventory.model.StockMutationType;
 import id.ac.ui.cs.advprog.inventory.repository.ProductRepository;
 import java.util.List;
+import java.util.UUID;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.UUID;
 
 @Service
 public class ProductService {

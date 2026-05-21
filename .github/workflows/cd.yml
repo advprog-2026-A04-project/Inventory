@@ -7,12 +7,19 @@ on:
 
 permissions:
   contents: read
+  id-token: write
+
+env:
+  CLOUD_RUN_REGION: us-central1
+  DB_DRIVER: org.postgresql.Driver
 
 jobs:
   deploy-staging:
     if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'staging' }}
     runs-on: ubuntu-latest
     environment: staging
+    env:
+      CLOUD_RUN_SERVICE: inventory-api-staging
 
     steps:
       - name: Checkout code
@@ -20,16 +27,51 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Dummy deploy to staging
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Deploy to Cloud Run staging
+        env:
+          APP_CORS_ALLOWED_ORIGINS: ${{ secrets.APP_CORS_ALLOWED_ORIGINS }}
+          DB_URL: ${{ secrets.DB_URL }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          INTERNAL_API_TOKEN: ${{ secrets.INTERNAL_API_TOKEN }}
         run: |
-          echo "CI passed for staging."
-          echo "Deploying commit ${{ github.event.workflow_run.head_sha }} to STAGING environment."
-          echo "Target (dummy): https://staging.inventory.example.com"
+          trap 'rm -f deploy.env' EXIT
+
+          {
+            printf 'APP_CORS_ALLOWED_ORIGINS=%s\n' "$APP_CORS_ALLOWED_ORIGINS"
+            printf 'DB_URL=%s\n' "$DB_URL"
+            printf 'DB_DRIVER=%s\n' "$DB_DRIVER"
+            printf 'DB_USERNAME=%s\n' "$DB_USERNAME"
+            printf 'DB_PASSWORD=%s\n' "$DB_PASSWORD"
+            printf 'JWT_SECRET=%s\n' "$JWT_SECRET"
+            printf 'INTERNAL_API_TOKEN=%s\n' "$INTERNAL_API_TOKEN"
+          } > deploy.env
+
+          gcloud run deploy "$CLOUD_RUN_SERVICE" \
+            --source . \
+            --project "${{ secrets.GCP_PROJECT_ID }}" \
+            --region "$CLOUD_RUN_REGION" \
+            --allow-unauthenticated \
+            --max-instances=1 \
+            --env-vars-file deploy.env
 
   deploy-production:
     if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
     runs-on: ubuntu-latest
     environment: production
+    env:
+      CLOUD_RUN_SERVICE: inventory-api
 
     steps:
       - name: Checkout code
@@ -37,8 +79,41 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Dummy deploy to production
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Deploy to Cloud Run production
+        env:
+          APP_CORS_ALLOWED_ORIGINS: ${{ secrets.APP_CORS_ALLOWED_ORIGINS }}
+          DB_URL: ${{ secrets.DB_URL }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          INTERNAL_API_TOKEN: ${{ secrets.INTERNAL_API_TOKEN }}
         run: |
-          echo "CI passed for main."
-          echo "Deploying commit ${{ github.event.workflow_run.head_sha }} to PRODUCTION environment."
-          echo "Target (dummy): https://inventory.example.com"
+          trap 'rm -f deploy.env' EXIT
+
+          {
+            printf 'APP_CORS_ALLOWED_ORIGINS=%s\n' "$APP_CORS_ALLOWED_ORIGINS"
+            printf 'DB_URL=%s\n' "$DB_URL"
+            printf 'DB_DRIVER=%s\n' "$DB_DRIVER"
+            printf 'DB_USERNAME=%s\n' "$DB_USERNAME"
+            printf 'DB_PASSWORD=%s\n' "$DB_PASSWORD"
+            printf 'JWT_SECRET=%s\n' "$JWT_SECRET"
+            printf 'INTERNAL_API_TOKEN=%s\n' "$INTERNAL_API_TOKEN"
+          } > deploy.env
+
+          gcloud run deploy "$CLOUD_RUN_SERVICE" \
+            --source . \
+            --project "${{ secrets.GCP_PROJECT_ID }}" \
+            --region "$CLOUD_RUN_REGION" \
+            --allow-unauthenticated \
+            --max-instances=1 \
+            --env-vars-file deploy.env
