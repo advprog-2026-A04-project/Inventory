@@ -150,6 +150,23 @@ class ProductControllerTest {
     }
 
     @Test
+    void searchAndProductDetailsShouldBePublicForCatalogBrowsing() throws Exception {
+        when(productService.searchByProductName("bag")).thenReturn(List.of(sampleProduct));
+        when(productService.getById(PRODUCT_ID)).thenReturn(sampleProduct);
+        when(productService.listByJastiper(USER_JASTIPER)).thenReturn(List.of(sampleProduct));
+
+        mockMvc.perform(get("/api/products/search").param("keyword", "bag"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value(PRODUCT_NAME_BAG));
+        mockMvc.perform(get("/api/products/" + PRODUCT_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(PRODUCT_ID.toString()));
+        mockMvc.perform(get("/api/products/jastipers/" + USER_JASTIPER))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].jastiperId").value(USER_JASTIPER));
+    }
+
+    @Test
     @WithMockUser(username = USER_ADMIN, roles = "ADMIN")
     void monitorAllProducts_shouldWorkForAdmin() throws Exception {
         when(productService.listAll()).thenReturn(List.of(sampleProduct));
