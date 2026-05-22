@@ -41,7 +41,7 @@ public class ProductService {
     }
 
     public List<Product> listOwnedBy(String jastiperId) {
-        return productRepository.findAllByJastiperId(jastiperId);
+        return productRepository.findActiveByJastiperId(jastiperId);
     }
 
     public List<Product> searchByProductName(String keyword) {
@@ -50,11 +50,11 @@ public class ProductService {
     }
 
     public List<Product> listByJastiper(String jastiperId) {
-        return productRepository.findAllByJastiperId(jastiperId);
+        return productRepository.findActiveByJastiperId(jastiperId);
     }
 
     public List<Product> listAll() {
-        return productRepository.findAll();
+        return productRepository.findAllActive();
     }
 
     @Transactional
@@ -73,7 +73,7 @@ public class ProductService {
         if (!product.getJastiperId().equals(actorId)) {
             throw new ForbiddenProductAccessException(productId, actorId);
         }
-        productRepository.delete(product);
+        softDelete(product);
     }
 
     @Transactional
@@ -86,7 +86,7 @@ public class ProductService {
     @Transactional
     public void adminDeleteProduct(UUID productId) {
         Product product = findProductOrThrow(productId);
-        productRepository.delete(product);
+        softDelete(product);
     }
 
     @Transactional
@@ -97,6 +97,25 @@ public class ProductService {
 
     public Product getById(UUID productId) {
         return findProductOrThrow(productId);
+    }
+
+    @Transactional
+    public Product recordCompletedOrder(UUID productId) {
+        Product product = findProductForUpdateOrThrow(productId);
+        product.setSuccessfulOrderCount(nonNull(product.getSuccessfulOrderCount()) + 1);
+        return productRepository.save(product);
+    }
+
+    @Transactional
+    public Product recordProductRating(UUID productId, int rating) {
+        if (rating < 1 || rating > 5) {
+            throw new IllegalArgumentException("rating must be between 1 and 5");
+        }
+
+        Product product = findProductForUpdateOrThrow(productId);
+        product.setProductRatingCount(nonNull(product.getProductRatingCount()) + 1);
+        product.setProductRatingTotal(nonNull(product.getProductRatingTotal()) + rating);
+        return productRepository.save(product);
     }
 
     @Transactional
@@ -127,7 +146,7 @@ public class ProductService {
     }
 
     private Product findProductOrThrow(UUID productId) {
-        return productRepository.findById(productId)
+        return productRepository.findActiveById(productId)
                 .orElseThrow(() -> new ProductNotFoundException(productId));
     }
 
@@ -223,5 +242,14 @@ public class ProductService {
         if (requestId == null || requestId.isBlank()) {
             throw new IllegalArgumentException("requestId must be provided");
         }
+    }
+
+    private void softDelete(Product product) {
+        product.setDeleted(true);
+        productRepository.save(product);
+    }
+
+    private int nonNull(Integer value) {
+        return value == null ? 0 : value;
     }
 }

@@ -1,6 +1,5 @@
 package id.ac.ui.cs.advprog.inventory.config;
 
-import id.ac.ui.cs.advprog.inventory.model.Product;
 import io.jsonwebtoken.JwtException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -16,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+@SuppressWarnings("PMD.AvoidDuplicateLiterals")
 class JwtAuthenticationFilterTest {
 
     @AfterEach

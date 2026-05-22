@@ -1,6 +1,16 @@
 name: CD
 
 on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Deployment target
+        required: true
+        default: production
+        type: choice
+        options:
+          - production
+          - staging
   workflow_run:
     workflows: [ "CI" ]
     types: [ completed ]
@@ -15,7 +25,11 @@ env:
 
 jobs:
   deploy-staging:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'staging' }}
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'staging') ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'staging')
     runs-on: ubuntu-latest
     environment: staging
     env:
@@ -25,7 +39,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v3
@@ -40,6 +54,7 @@ jobs:
       - name: Deploy to Cloud Run staging
         env:
           APP_CORS_ALLOWED_ORIGINS: ${{ secrets.APP_CORS_ALLOWED_ORIGINS }}
+          CLOUD_SQL_INSTANCE_CONNECTION_NAME: ${{ secrets.CLOUD_SQL_INSTANCE_CONNECTION_NAME }}
           DB_URL: ${{ secrets.DB_URL }}
           DB_USERNAME: ${{ secrets.DB_USERNAME }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
@@ -50,6 +65,7 @@ jobs:
 
           {
             printf 'APP_CORS_ALLOWED_ORIGINS=%s\n' "$APP_CORS_ALLOWED_ORIGINS"
+            printf 'CLOUD_SQL_INSTANCE_CONNECTION_NAME=%s\n' "$CLOUD_SQL_INSTANCE_CONNECTION_NAME"
             printf 'DB_URL=%s\n' "$DB_URL"
             printf 'DB_DRIVER=%s\n' "$DB_DRIVER"
             printf 'DB_USERNAME=%s\n' "$DB_USERNAME"
@@ -58,16 +74,34 @@ jobs:
             printf 'INTERNAL_API_TOKEN=%s\n' "$INTERNAL_API_TOKEN"
           } > deploy.env
 
+          cloud_sql_args=()
+          if [ -n "${CLOUD_SQL_INSTANCE_CONNECTION_NAME:-}" ]; then
+            cloud_sql_args+=(--add-cloudsql-instances "$CLOUD_SQL_INSTANCE_CONNECTION_NAME")
+          fi
+
           gcloud run deploy "$CLOUD_RUN_SERVICE" \
             --source . \
             --project "${{ secrets.GCP_PROJECT_ID }}" \
             --region "$CLOUD_RUN_REGION" \
             --allow-unauthenticated \
             --max-instances=1 \
-            --env-vars-file deploy.env
+            --env-vars-file deploy.env \
+            "${cloud_sql_args[@]}"
+
+      - name: Smoke test staging
+        run: |
+          url="$(gcloud run services describe "$CLOUD_RUN_SERVICE" \
+            --project "${{ secrets.GCP_PROJECT_ID }}" \
+            --region "$CLOUD_RUN_REGION" \
+            --format='value(status.url)')"
+          curl --fail --silent --show-error "$url/actuator/health"
 
   deploy-production:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'production') ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     environment: production
     env:
@@ -77,7 +111,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v3
@@ -92,6 +126,7 @@ jobs:
       - name: Deploy to Cloud Run production
         env:
           APP_CORS_ALLOWED_ORIGINS: ${{ secrets.APP_CORS_ALLOWED_ORIGINS }}
+          CLOUD_SQL_INSTANCE_CONNECTION_NAME: ${{ secrets.CLOUD_SQL_INSTANCE_CONNECTION_NAME }}
           DB_URL: ${{ secrets.DB_URL }}
           DB_USERNAME: ${{ secrets.DB_USERNAME }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
@@ -102,6 +137,7 @@ jobs:
 
           {
             printf 'APP_CORS_ALLOWED_ORIGINS=%s\n' "$APP_CORS_ALLOWED_ORIGINS"
+            printf 'CLOUD_SQL_INSTANCE_CONNECTION_NAME=%s\n' "$CLOUD_SQL_INSTANCE_CONNECTION_NAME"
             printf 'DB_URL=%s\n' "$DB_URL"
             printf 'DB_DRIVER=%s\n' "$DB_DRIVER"
             printf 'DB_USERNAME=%s\n' "$DB_USERNAME"
@@ -110,10 +146,24 @@ jobs:
             printf 'INTERNAL_API_TOKEN=%s\n' "$INTERNAL_API_TOKEN"
           } > deploy.env
 
+          cloud_sql_args=()
+          if [ -n "${CLOUD_SQL_INSTANCE_CONNECTION_NAME:-}" ]; then
+            cloud_sql_args+=(--add-cloudsql-instances "$CLOUD_SQL_INSTANCE_CONNECTION_NAME")
+          fi
+
           gcloud run deploy "$CLOUD_RUN_SERVICE" \
             --source . \
             --project "${{ secrets.GCP_PROJECT_ID }}" \
             --region "$CLOUD_RUN_REGION" \
             --allow-unauthenticated \
             --max-instances=1 \
-            --env-vars-file deploy.env
+            --env-vars-file deploy.env \
+            "${cloud_sql_args[@]}"
+
+      - name: Smoke test production
+        run: |
+          url="$(gcloud run services describe "$CLOUD_RUN_SERVICE" \
+            --project "${{ secrets.GCP_PROJECT_ID }}" \
+            --region "$CLOUD_RUN_REGION" \
+            --format='value(status.url)')"
+          curl --fail --silent --show-error "$url/actuator/health"

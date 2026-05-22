@@ -23,7 +23,6 @@ class ProductMutationMapperTest {
         request.setStock(3);
         request.setOriginLocation("Japan");
         request.setPurchaseDate(LocalDate.of(2026, 4, 1));
-        request.setReturnDate(LocalDate.of(2026, 4, 8));
 
         Product product = mapper.fromCreateRequest(request, "jastiper-1");
 
@@ -33,7 +32,6 @@ class ProductMutationMapperTest {
         assertEquals(3, product.getStock());
         assertEquals("Japan", product.getOriginLocation());
         assertEquals(LocalDate.of(2026, 4, 1), product.getPurchaseDate());
-        assertEquals(LocalDate.of(2026, 4, 8), product.getReturnDate());
         assertEquals("jastiper-1", product.getJastiperId());
     }
 
@@ -46,7 +44,6 @@ class ProductMutationMapperTest {
                 .stock(1)
                 .originLocation("Old")
                 .purchaseDate(LocalDate.of(2026, 1, 1))
-                .returnDate(LocalDate.of(2026, 1, 8))
                 .jastiperId("jastiper")
                 .build();
         ProductUpdateRequest request = new ProductUpdateRequest();
@@ -56,7 +53,6 @@ class ProductMutationMapperTest {
         request.setStock(8);
         request.setOriginLocation("Korea");
         request.setPurchaseDate(LocalDate.of(2026, 5, 1));
-        request.setReturnDate(LocalDate.of(2026, 5, 8));
 
         mapper.applyUpdate(product, request);
 
@@ -66,6 +62,5 @@ class ProductMutationMapperTest {
         assertEquals(8, product.getStock());
         assertEquals("Korea", product.getOriginLocation());
         assertEquals(LocalDate.of(2026, 5, 1), product.getPurchaseDate());
-        assertEquals(LocalDate.of(2026, 5, 8), product.getReturnDate());
     }
 }
