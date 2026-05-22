@@ -20,6 +20,142 @@ Internal checkout endpoints:
 
 The service uses JWT auth for browser clients and `X-Internal-Token` for Order-to-Inventory calls.
 
+## Software Quality
+
+Project ini juga disiapkan untuk memenuhi rubrik **software quality** melalui beberapa teknik berikut:
+
+### Clean Code
+
+- Logika bisnis dipisahkan ke `ProductService`, `ProductMutationMapper`, `StockMutationIdempotencyService`, dan strategi stok.
+- Error handling dipusatkan di `ApiExceptionHandler` agar respons API konsisten.
+- Validasi request dilakukan di DTO dan service untuk menjaga input tetap aman.
+
+### Unit Testing
+
+- `ProductServiceTest`
+- `ProductMutationMapperTest`
+- `JwtServiceTest`
+- `SecurityConfigTest`
+
+Test ini memverifikasi perilaku unit kecil secara terisolasi dengan mock.
+
+### Functional / Integration Testing
+
+- `ProductFlowIntegrationTest`
+
+Test ini menjalankan alur end-to-end dengan `MockMvc`, mulai dari create, search, reserve, reduce-stock, sampai restore-stock.
+
+### Regression Testing
+
+- `ProductServiceConcurrencyTest`
+- idempotency coverage pada `ProductFlowIntegrationTest`
+
+Test ini menjaga agar perbaikan tidak merusak perilaku lama, terutama untuk concurrency, optimistic locking, dan retry request.
+
+### Secure Coding
+
+- JWT dipakai untuk akses browser client.
+- `X-Internal-Token` dipakai untuk komunikasi internal Order-to-Inventory.
+- `ForbiddenProductAccessException` membatasi akses owner vs non-owner.
+- `InsufficientStockException` dan optimistic locking mencegah stok menjadi negatif.
+- Workflow OSSF Scorecard disediakan di `.github/workflows/scorecard.yml` untuk pemeriksaan supply-chain security.
+- Workflow ini diambil dari template resmi GitHub/OSSF Scorecard dan dipakai sebagai bukti tooling security tambahan.
+
+### Profiling / Monitoring
+
+- Spring Boot Actuator diaktifkan.
+- Endpoint metrics diekspos lewat `/actuator/metrics`.
+
+Contoh endpoint yang bisa dipakai untuk observasi performa:
+
+- `/actuator/metrics/http.server.requests`
+- `/actuator/metrics/jvm.memory.used`
+
+Dengan metrik tersebut, performa request dan penggunaan memori bisa dianalisis saat dibutuhkan.
+
+### Laporan Pencapaian
+
+Seluruh kriteria pada poin ini sudah divalidasi dengan `./gradlew checkCoverage` dan berhasil melewati ambang **90%** untuk coverage yang diminta oleh konfigurasi JaCoCo.
+
+## Software Deployment
+
+Project ini juga sudah menerapkan rubrik **software deployment** melalui pipeline dan observability berikut:
+
+### CI/CD
+
+- `CI` workflow menjalankan test, JaCoCo coverage verification, PMD, dan Checkstyle.
+- `CD` workflow melakukan deployment otomatis ke Cloud Run setelah `CI` sukses.
+- Deployment dipisah untuk branch `staging` dan `main`, sehingga alur release lebih aman dan terkontrol.
+
+### Containerized Deployment
+
+- Aplikasi dibangun menggunakan multi-stage [Dockerfile](Dockerfile) agar image runtime tetap kecil.
+- Runtime memakai JRE 21, sedangkan proses build memakai JDK 21.
+- Deployment Cloud Run menggunakan environment variables untuk konfigurasi database, JWT, dan token internal.
+
+### Provisioning dan Environment
+
+- Cloud Run dipakai sebagai target deployment utama.
+- Konfigurasi environment disiapkan lewat `APP_CORS_ALLOWED_ORIGINS`, `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, dan `INTERNAL_API_TOKEN`.
+- Branch `staging` dan `main` masing-masing bisa dipakai untuk deployment staging dan production.
+
+### Monitoring dan Observability
+
+- Spring Boot Actuator diaktifkan untuk endpoint health, info, metrics, dan prometheus.
+- Metrics bisa diambil dari `/actuator/metrics` dan `/actuator/prometheus`.
+- Endpoint ini bisa dipakai untuk dashboard monitoring di sistem eksternal seperti Prometheus/Grafana.
+
+### Quality Guard Saat Deployment
+
+- CI menolak perubahan yang gagal test atau tidak lolos coverage, PMD, dan Checkstyle.
+- Jadi deployment hanya berjalan setelah quality gate terpenuhi.
+
+## Implementasi Design Pattern
+
+Project ini sudah memenuhi deskripsi tugas karena mengimplementasikan minimal **3 design pattern** pada proses manajemen stok:
+
+### 1. Strategy Pattern
+
+Dipakai untuk memisahkan perilaku perubahan stok berdasarkan jenis mutasi.
+
+- `ReduceStockStrategy` → mengurangi stok dan memvalidasi agar stok tidak menjadi negatif.
+- `RestoreStockStrategy` → menambah stok kembali.
+
+Dengan pola ini, logika `reduce` dan `restore` tidak bercampur di satu metode besar, sehingga lebih mudah dikembangkan jika nanti ada jenis mutasi stok lain.
+
+### 2. Factory Pattern
+
+`StockMutationStrategyFactory` bertugas memilih strategi yang sesuai berdasarkan `StockMutationType`.
+
+Alur yang dipakai:
+
+1. `ProductService` menerima permintaan mutasi stok.
+2. Service meminta strategi ke `StockMutationStrategyFactory`.
+3. Factory mengembalikan implementasi yang sesuai (`ReduceStockStrategy` atau `RestoreStockStrategy`).
+4. Strategi tersebut mengeksekusi perubahan stok.
+
+Pola ini membuat `ProductService` tidak perlu tahu detail implementasi tiap jenis mutasi.
+
+### 3. Observer Pattern
+
+Observer dipakai untuk memberi notifikasi ketika stok produk habis.
+
+- `OutOfStockEvent` menjadi event/pesan yang dikirim.
+- `OutOfStockEventListener` menerima event tersebut dan menjalankan aksi lanjutan (misalnya logging atau notifikasi ke sistem lain).
+
+Saat stok hasil mutasi menjadi `0`, `ProductService` akan mem-publish event, lalu listener akan menanganinya tanpa mengganggu alur utama service.
+
+### Ringkasan Alur Implementasi
+
+Untuk proses `reduce-stock` / `restore-stock`:
+
+1. `ProductService` menerima request.
+2. Service melakukan validasi data.
+3. Service mengambil strategi dari `StockMutationStrategyFactory`.
+4. Strategi menjalankan perubahan stok.
+5. Jika stok menjadi habis, service mem-publish `OutOfStockEvent`.
+6. `OutOfStockEventListener` menerima event dan menjalankan respons yang diperlukan.
+
 ## Local Run
 
 Prerequisites:

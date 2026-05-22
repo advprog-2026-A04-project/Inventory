@@ -1,22 +1,26 @@
 package id.ac.ui.cs.advprog.inventory.service;
 
+import java.util.List;
+import java.util.UUID;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import id.ac.ui.cs.advprog.inventory.dto.ProductCreateRequest;
 import id.ac.ui.cs.advprog.inventory.dto.ProductUpdateRequest;
 import id.ac.ui.cs.advprog.inventory.exception.ForbiddenProductAccessException;
-import id.ac.ui.cs.advprog.inventory.exception.InsufficientStockException;
 import id.ac.ui.cs.advprog.inventory.exception.ProductNotFoundException;
 import id.ac.ui.cs.advprog.inventory.exception.WarConflictException;
 import id.ac.ui.cs.advprog.inventory.model.Product;
 import id.ac.ui.cs.advprog.inventory.model.StockMutationType;
 import id.ac.ui.cs.advprog.inventory.repository.ProductRepository;
-import java.util.List;
-import java.util.UUID;
-import java.util.function.Consumer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.dao.OptimisticLockingFailureException;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import id.ac.ui.cs.advprog.inventory.service.event.OutOfStockEvent;
+import id.ac.ui.cs.advprog.inventory.service.strategy.StockMutationStrategy;
+import id.ac.ui.cs.advprog.inventory.service.strategy.StockMutationStrategyFactory;
 
 @Service
 public class ProductService {
@@ -25,15 +29,21 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final StockMutationIdempotencyService stockMutationIdempotencyService;
     private final ProductMutationMapper productMutationMapper;
+    private final StockMutationStrategyFactory stockMutationStrategyFactory;
+    private final ApplicationEventPublisher eventPublisher;
 
     public ProductService(
             ProductRepository productRepository,
             StockMutationIdempotencyService stockMutationIdempotencyService,
-            ProductMutationMapper productMutationMapper
+            ProductMutationMapper productMutationMapper,
+            StockMutationStrategyFactory stockMutationStrategyFactory,
+            ApplicationEventPublisher eventPublisher
     ) {
         this.productRepository = productRepository;
         this.stockMutationIdempotencyService = stockMutationIdempotencyService;
         this.productMutationMapper = productMutationMapper;
+        this.stockMutationStrategyFactory = stockMutationStrategyFactory;
+        this.eventPublisher = eventPublisher;
     }
 
     public Product create(ProductCreateRequest request, String jastiperId) {
@@ -109,21 +119,14 @@ public class ProductService {
     public Product reduceStock(UUID productId, int quantity, String orderId, String requestId) {
         validateQuantity(quantity);
         validateMutationMetadata(orderId, requestId);
-        return applyIdempotentMutation(productId, quantity, orderId, requestId, StockMutationType.REDUCE, product -> {
-            int available = product.getStock();
-            if (available < quantity) {
-                throw new InsufficientStockException(productId, quantity, available);
-            }
-            product.setStock(available - quantity);
-        });
+        return applyIdempotentMutation(productId, quantity, orderId, requestId, StockMutationType.REDUCE);
     }
 
     @Transactional
     public Product restoreStock(UUID productId, int quantity, String orderId, String requestId) {
         validateQuantity(quantity);
         validateMutationMetadata(orderId, requestId);
-        return applyIdempotentMutation(productId, quantity, orderId, requestId, StockMutationType.RESTORE,
-                product -> product.setStock(product.getStock() + quantity));
+        return applyIdempotentMutation(productId, quantity, orderId, requestId, StockMutationType.RESTORE);
     }
 
     private Product findProductOrThrow(UUID productId) {
@@ -138,17 +141,21 @@ public class ProductService {
 
     private Product applyStockReduction(UUID productId, int quantity) {
         Product product = findProductForUpdateOrThrow(productId);
-        int available = product.getStock();
-        if (available < quantity) {
-            throw new InsufficientStockException(productId, quantity, available);
+        StockMutationStrategy strategy = stockMutationStrategyFactory.getStrategy(StockMutationType.REDUCE);
+        strategy.execute(product, quantity);
+
+        Product saved = saveProduct(productId, product);
+
+        if (saved.getStock() == 0) {
+            eventPublisher.publishEvent(new OutOfStockEvent(saved));
         }
-        product.setStock(available - quantity);
-        return saveProduct(productId, product);
+        return saved;
     }
 
     private Product applyStockRestoration(UUID productId, int quantity) {
         Product product = findProductForUpdateOrThrow(productId);
-        product.setStock(product.getStock() + quantity);
+        StockMutationStrategy strategy = stockMutationStrategyFactory.getStrategy(StockMutationType.RESTORE);
+        strategy.execute(product, quantity);
         return saveProduct(productId, product);
     }
 
@@ -157,8 +164,7 @@ public class ProductService {
             int quantity,
             String orderId,
             String requestId,
-            StockMutationType mutationType,
-            Consumer<Product> mutation
+            StockMutationType mutationType
     ) {
         if (isDuplicateMutation(productId, quantity, orderId, requestId, mutationType)) {
             log.info(
@@ -172,8 +178,16 @@ public class ProductService {
         }
 
         Product product = findProductForUpdateOrThrow(productId);
-        mutation.accept(product);
+
+        StockMutationStrategy strategy = stockMutationStrategyFactory.getStrategy(mutationType);
+        strategy.execute(product, quantity);
+
         Product saved = saveProduct(productId, product);
+
+        if (saved.getStock() == 0) {
+            eventPublisher.publishEvent(new OutOfStockEvent(saved));
+        }
+
         log.info(
                 "Applied inventory mutation requestId={} orderId={} productId={} type={} quantity={} resultingStock={}",
                 requestId,

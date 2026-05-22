@@ -33,6 +33,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-web")
+    runtimeOnly("io.micrometer:micrometer-registry-prometheus")
     implementation("com.google.cloud.sql:postgres-socket-factory:1.28.3")
     implementation("io.jsonwebtoken:jjwt-api:0.12.7")
     compileOnly("org.projectlombok:lombok")

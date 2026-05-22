@@ -16,6 +16,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.OptimisticLockingFailureException;
 
 import id.ac.ui.cs.advprog.inventory.dto.ProductCreateRequest;
@@ -27,6 +28,10 @@ import id.ac.ui.cs.advprog.inventory.exception.WarConflictException;
 import id.ac.ui.cs.advprog.inventory.model.Product;
 import id.ac.ui.cs.advprog.inventory.model.StockMutationType;
 import id.ac.ui.cs.advprog.inventory.repository.ProductRepository;
+import id.ac.ui.cs.advprog.inventory.service.event.OutOfStockEvent;
+import id.ac.ui.cs.advprog.inventory.service.strategy.ReduceStockStrategy;
+import id.ac.ui.cs.advprog.inventory.service.strategy.RestoreStockStrategy;
+import id.ac.ui.cs.advprog.inventory.service.strategy.StockMutationStrategyFactory;
 
 class ProductServiceTest {
 
@@ -35,6 +40,8 @@ class ProductServiceTest {
     private ProductRepository productRepository;
     private StockMutationIdempotencyService stockMutationIdempotencyService;
     private ProductMutationMapper productMutationMapper;
+    private StockMutationStrategyFactory stockMutationStrategyFactory;
+    private ApplicationEventPublisher eventPublisher;
     private ProductService productService;
 
     @BeforeEach
@@ -42,7 +49,21 @@ class ProductServiceTest {
         productRepository = Mockito.mock(ProductRepository.class);
         stockMutationIdempotencyService = Mockito.mock(StockMutationIdempotencyService.class);
         productMutationMapper = new ProductMutationMapper();
-        productService = new ProductService(productRepository, stockMutationIdempotencyService, productMutationMapper);
+        stockMutationStrategyFactory = Mockito.mock(StockMutationStrategyFactory.class);
+        eventPublisher = Mockito.mock(ApplicationEventPublisher.class);
+        
+        when(stockMutationStrategyFactory.getStrategy(StockMutationType.REDUCE))
+            .thenReturn(new ReduceStockStrategy());
+        when(stockMutationStrategyFactory.getStrategy(StockMutationType.RESTORE))
+            .thenReturn(new RestoreStockStrategy());
+            
+        productService = new ProductService(
+            productRepository, 
+            stockMutationIdempotencyService, 
+            productMutationMapper,
+            stockMutationStrategyFactory,
+            eventPublisher
+        );
     }
 
     @Test
@@ -243,8 +264,30 @@ class ProductServiceTest {
     }
 
     @Test
+    void reserveStockShouldPublishOutOfStockEventWhenStockBecomesZero() {
+        UUID productId = UUID.randomUUID();
+        Product existing = Product.builder().id(productId).stock(1).jastiperId(JASTIPER_1).build();
+        when(productRepository.findByIdForUpdate(productId)).thenReturn(Optional.of(existing));
+        when(productRepository.saveAndFlush(existing)).thenReturn(existing);
+
+        Product updated = productService.reserveStock(productId, 1);
+
+        assertEquals(0, updated.getStock());
+        verify(eventPublisher).publishEvent(any(OutOfStockEvent.class));
+    }
+
+    @Test
     void reserveStockShouldRejectNonPositiveQuantity() {
         assertThrows(IllegalArgumentException.class, () -> productService.reserveStock(UUID.randomUUID(), 0));
+    }
+
+    @Test
+    void reduceStockShouldRejectBlankOrderId() {
+        UUID productId = UUID.randomUUID();
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> productService.reduceStock(productId, 1, " ", "request-1")
+        );
     }
 
     @Test
@@ -262,6 +305,15 @@ class ProductServiceTest {
     @Test
     void restoreStockShouldRejectNonPositiveQuantity() {
         assertThrows(IllegalArgumentException.class, () -> productService.restoreStock(UUID.randomUUID(), -1));
+    }
+
+    @Test
+    void restoreStockShouldRejectBlankRequestId() {
+        UUID productId = UUID.randomUUID();
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> productService.restoreStock(productId, 1, "order-1", "")
+        );
     }
 
     @Test

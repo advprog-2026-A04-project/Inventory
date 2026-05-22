@@ -42,6 +42,15 @@ class InternalTokenAuthenticationFilterTest {
     }
 
     @Test
+    void shouldIgnoreWhenInternalTokenHeaderMissing() throws Exception {
+        InternalTokenAuthenticationFilter filter = new InternalTokenAuthenticationFilter("shared-token");
+
+        filter.doFilter(new MockHttpServletRequest(), new MockHttpServletResponse(), new MockFilterChain());
+
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+    }
+
+    @Test
     void shouldSkipWhenAuthenticationAlreadyExists() throws Exception {
         InternalTokenAuthenticationFilter filter = new InternalTokenAuthenticationFilter("shared-token");
         SecurityContextHolder.getContext().setAuthentication(
