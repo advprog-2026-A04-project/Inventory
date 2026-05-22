@@ -19,7 +19,7 @@ public class InternalTokenAuthenticationFilter extends OncePerRequestFilter {
     private final String internalToken;
 
     public InternalTokenAuthenticationFilter(@Value("${app.internal-token}") String internalToken) {
-        this.internalToken = internalToken;
+        this.internalToken = sanitize(internalToken);
     }
 
     @Override
@@ -34,7 +34,7 @@ public class InternalTokenAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
         String header = request.getHeader("X-Internal-Token");
-        if (header != null && header.equals(internalToken)) {
+        if (header != null && sanitize(header).equals(internalToken)) {
             SecurityContextHolder.getContext().setAuthentication(
                     new UsernamePasswordAuthenticationToken(
                             "internal-service",
@@ -45,5 +45,12 @@ public class InternalTokenAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private static String sanitize(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replace("\uFEFF", "").trim();
     }
 }
