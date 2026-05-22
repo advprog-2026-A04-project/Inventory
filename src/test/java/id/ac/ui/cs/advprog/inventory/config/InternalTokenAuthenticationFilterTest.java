@@ -32,6 +32,18 @@ class InternalTokenAuthenticationFilterTest {
     }
 
     @Test
+    void shouldAuthenticateTokenWhenDeploymentValueHasBom() throws Exception {
+        InternalTokenAuthenticationFilter filter = new InternalTokenAuthenticationFilter("\uFEFFshared-token");
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("X-Internal-Token", "shared-token");
+
+        filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+
+        assertEquals("internal-service", SecurityContextHolder.getContext().getAuthentication().getName());
+        assertEquals("ROLE_INTERNAL", SecurityContextHolder.getContext().getAuthentication().getAuthorities().iterator().next().getAuthority());
+    }
+
+    @Test
     void shouldIgnoreDifferentInternalToken() throws Exception {
         InternalTokenAuthenticationFilter filter = new InternalTokenAuthenticationFilter("shared-token");
         MockHttpServletRequest request = new MockHttpServletRequest();
