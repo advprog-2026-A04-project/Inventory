@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import static org.mockito.ArgumentMatchers.any;
 import org.mockito.Mockito;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -80,17 +81,7 @@ class StockMutationIdempotencyServiceTest {
         UUID productId = UUID.randomUUID();
         String requestId = "request-101";
 
-        when(jdbcTemplate.update(any(String.class), any(), any(), any(), any(), any(), any()))
-                .thenThrow(new DataIntegrityViolationException("duplicate"));
-        when(stockMutationRecordRepository.findByRequestId(requestId)).thenReturn(Optional.of(
-                StockMutationRecord.builder()
-                        .requestId(requestId)
-                        .orderId("101")
-                        .productId(productId)
-                        .quantity(2)
-                        .mutationType(StockMutationType.REDUCE)
-                        .build()
-        ));
+        mockDuplicateRecord(requestId, productId, "101", 2, StockMutationType.REDUCE);
 
         assertThrows(
                 IdempotencyConflictException.class,
@@ -105,26 +96,16 @@ class StockMutationIdempotencyServiceTest {
     }
 
     @Test
-    void registerOrDetectDuplicateShouldRejectRequestReuseWithDifferentProductId() {
+    void registerOrDetectDuplicateShouldRejectDifferentProductReuse() {
         UUID productId = UUID.randomUUID();
-        String requestId = "request-102";
+        String requestId = "request-product";
 
-        when(jdbcTemplate.update(any(String.class), any(), any(), any(), any(), any(), any()))
-                .thenThrow(new DataIntegrityViolationException("duplicate"));
-        when(stockMutationRecordRepository.findByRequestId(requestId)).thenReturn(Optional.of(
-                StockMutationRecord.builder()
-                        .requestId(requestId)
-                        .orderId("102")
-                        .productId(productId)
-                        .quantity(2)
-                        .mutationType(StockMutationType.REDUCE)
-                        .build()
-        ));
+        mockDuplicateRecord(requestId, UUID.randomUUID(), "102", 2, StockMutationType.REDUCE);
 
         assertThrows(
                 IdempotencyConflictException.class,
                 () -> stockMutationIdempotencyService.registerOrDetectDuplicate(
-                        UUID.randomUUID(),
+                        productId,
                         2,
                         "102",
                         requestId,
@@ -134,28 +115,18 @@ class StockMutationIdempotencyServiceTest {
     }
 
     @Test
-    void registerOrDetectDuplicateShouldRejectRequestReuseWithDifferentOrderId() {
+    void registerOrDetectDuplicateShouldRejectDifferentOrderReuse() {
         UUID productId = UUID.randomUUID();
-        String requestId = "request-103";
+        String requestId = "request-order";
 
-        when(jdbcTemplate.update(any(String.class), any(), any(), any(), any(), any(), any()))
-                .thenThrow(new DataIntegrityViolationException("duplicate"));
-        when(stockMutationRecordRepository.findByRequestId(requestId)).thenReturn(Optional.of(
-                StockMutationRecord.builder()
-                        .requestId(requestId)
-                        .orderId("103")
-                        .productId(productId)
-                        .quantity(2)
-                        .mutationType(StockMutationType.REDUCE)
-                        .build()
-        ));
+        mockDuplicateRecord(requestId, productId, "existing-order", 2, StockMutationType.REDUCE);
 
         assertThrows(
                 IdempotencyConflictException.class,
                 () -> stockMutationIdempotencyService.registerOrDetectDuplicate(
                         productId,
                         2,
-                        "different-order",
+                        "new-order",
                         requestId,
                         StockMutationType.REDUCE
                 )
@@ -163,31 +134,61 @@ class StockMutationIdempotencyServiceTest {
     }
 
     @Test
-    void registerOrDetectDuplicateShouldRejectRequestReuseWithDifferentMutationType() {
+    void registerOrDetectDuplicateShouldRejectDifferentMutationTypeReuse() {
         UUID productId = UUID.randomUUID();
-        String requestId = "request-104";
+        String requestId = "request-type";
 
-        when(jdbcTemplate.update(any(String.class), any(), any(), any(), any(), any(), any()))
-                .thenThrow(new DataIntegrityViolationException("duplicate"));
-        when(stockMutationRecordRepository.findByRequestId(requestId)).thenReturn(Optional.of(
-                StockMutationRecord.builder()
-                        .requestId(requestId)
-                        .orderId("104")
-                        .productId(productId)
-                        .quantity(2)
-                        .mutationType(StockMutationType.REDUCE)
-                        .build()
-        ));
+        mockDuplicateRecord(requestId, productId, "103", 2, StockMutationType.RESTORE);
 
         assertThrows(
                 IdempotencyConflictException.class,
                 () -> stockMutationIdempotencyService.registerOrDetectDuplicate(
                         productId,
                         2,
-                        "104",
+                        "103",
                         requestId,
-                        StockMutationType.RESTORE
+                        StockMutationType.REDUCE
                 )
         );
+    }
+
+    @Test
+    void registerOrDetectDuplicateShouldRethrowWhenDuplicateRecordCannotBeLoaded() {
+        String requestId = "request-missing";
+        DataIntegrityViolationException duplicate = new DataIntegrityViolationException("duplicate");
+        when(jdbcTemplate.update(any(String.class), any(), any(), any(), any(), any(), any())).thenThrow(duplicate);
+        when(stockMutationRecordRepository.findByRequestId(requestId)).thenReturn(Optional.empty());
+
+        assertThrows(
+                DataIntegrityViolationException.class,
+                () -> stockMutationIdempotencyService.registerOrDetectDuplicate(
+                        UUID.randomUUID(),
+                        2,
+                        "104",
+                        requestId,
+                        StockMutationType.REDUCE
+                )
+        );
+        verify(stockMutationRecordRepository).findByRequestId(requestId);
+    }
+
+    private void mockDuplicateRecord(
+            String requestId,
+            UUID productId,
+            String orderId,
+            int quantity,
+            StockMutationType mutationType
+    ) {
+        when(jdbcTemplate.update(any(String.class), any(), any(), any(), any(), any(), any()))
+                .thenThrow(new DataIntegrityViolationException("duplicate"));
+        when(stockMutationRecordRepository.findByRequestId(requestId)).thenReturn(Optional.of(
+                StockMutationRecord.builder()
+                        .requestId(requestId)
+                        .orderId(orderId)
+                        .productId(productId)
+                        .quantity(quantity)
+                        .mutationType(mutationType)
+                        .build()
+        ));
     }
 }

@@ -33,7 +33,4 @@ public class ProductUpdateRequest {
 
     @NotNull
     private LocalDate purchaseDate;
-
-    @NotNull
-    private LocalDate returnDate;
 }

@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import id.ac.ui.cs.advprog.inventory.dto.ProductCreateRequest;
 import id.ac.ui.cs.advprog.inventory.dto.InventoryStockMutationRequest;
+import id.ac.ui.cs.advprog.inventory.dto.ProductRatingRequest;
 import id.ac.ui.cs.advprog.inventory.dto.ProductUpdateRequest;
 import id.ac.ui.cs.advprog.inventory.dto.ReserveStockRequest;
 import id.ac.ui.cs.advprog.inventory.model.Product;
@@ -33,7 +34,6 @@ public class ProductController {
 
     private static final String ROLE_JASTIPER = "hasRole('JASTIPER')";
     private static final String ROLE_ADMIN = "hasRole('ADMIN')";
-    private static final String ROLE_BUYER_OR_HIGHER = "hasAnyRole('TITIPER','JASTIPER','ADMIN')";
     private static final String ROLE_INTERNAL = "hasRole('INTERNAL')";
 
     private final ProductService productService;
@@ -71,19 +71,16 @@ public class ProductController {
         return productService.listOwnedBy(authentication.getName());
     }
 
-    @PreAuthorize(ROLE_BUYER_OR_HIGHER)
     @GetMapping("/search")
     public List<Product> searchByProduct(@RequestParam(required = false) String keyword) {
         return productService.searchByProductName(keyword);
     }
 
-    @PreAuthorize(ROLE_BUYER_OR_HIGHER)
     @GetMapping("/jastipers/{jastiperId}")
     public List<Product> searchByJastiper(@PathVariable String jastiperId) {
         return productService.listByJastiper(jastiperId);
     }
 
-    @PreAuthorize(ROLE_BUYER_OR_HIGHER)
     @GetMapping("/{productId}")
     public Product getProductById(@PathVariable UUID productId) {
         return productService.getById(productId);
@@ -119,6 +116,21 @@ public class ProductController {
     @GetMapping("/inventory/{productId}")
     public Product getInventoryDetail(@PathVariable UUID productId) {
         return productService.getById(productId);
+    }
+
+    @PreAuthorize(ROLE_INTERNAL)
+    @PostMapping("/inventory/{productId}/completed-order")
+    public Product recordCompletedOrder(@PathVariable UUID productId) {
+        return productService.recordCompletedOrder(productId);
+    }
+
+    @PreAuthorize(ROLE_INTERNAL)
+    @PostMapping("/inventory/{productId}/rating")
+    public Product recordProductRating(
+            @PathVariable UUID productId,
+            @Valid @RequestBody ProductRatingRequest request
+    ) {
+        return productService.recordProductRating(productId, request.rating());
     }
 
     @PreAuthorize(ROLE_INTERNAL)

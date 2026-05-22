@@ -51,6 +51,7 @@ import id.ac.ui.cs.advprog.inventory.service.ProductService;
         "app.internal-token=json-internal-token",
         "app.cors.allowed-origins=http://localhost:5173"
 })
+@SuppressWarnings("PMD.AvoidDuplicateLiterals")
 class ProductControllerTest {
 
     private static final String USER_JASTIPER = "jastiper1";
@@ -81,7 +82,6 @@ class ProductControllerTest {
                 .stock(5)
                 .originLocation(LOCATION_JAPAN)
                 .purchaseDate(LocalDate.of(2026, 3, 1))
-                .returnDate(LocalDate.of(2026, 3, 8))
                 .jastiperId(USER_JASTIPER)
                 .version(1L)
                 .build();
@@ -97,7 +97,6 @@ class ProductControllerTest {
         request.setStock(5);
         request.setOriginLocation(LOCATION_JAPAN);
         request.setPurchaseDate(LocalDate.of(2026, 3, 1));
-        request.setReturnDate(LocalDate.of(2026, 3, 8));
 
         when(productService.create(any(ProductCreateRequest.class), eq(USER_JASTIPER)))
                 .thenReturn(sampleProduct);
@@ -107,7 +106,6 @@ class ProductControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value(PRODUCT_NAME_BAG))
-                .andExpect(jsonPath("$.returnDate").value("2026-03-08"))
                 .andExpect(jsonPath("$.jastiperId").value(USER_JASTIPER));
     }
 
@@ -121,7 +119,6 @@ class ProductControllerTest {
         request.setStock(5);
         request.setOriginLocation(LOCATION_JAPAN);
         request.setPurchaseDate(LocalDate.of(2026, 3, 1));
-        request.setReturnDate(LocalDate.of(2026, 3, 8));
 
         mockMvc.perform(post("/api/products")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -150,6 +147,23 @@ class ProductControllerTest {
         mockMvc.perform(get("/api/products/search").param("keyword", "bag"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].name").value(PRODUCT_NAME_BAG));
+    }
+
+    @Test
+    void searchAndProductDetailsShouldBePublicForCatalogBrowsing() throws Exception {
+        when(productService.searchByProductName("bag")).thenReturn(List.of(sampleProduct));
+        when(productService.getById(PRODUCT_ID)).thenReturn(sampleProduct);
+        when(productService.listByJastiper(USER_JASTIPER)).thenReturn(List.of(sampleProduct));
+
+        mockMvc.perform(get("/api/products/search").param("keyword", "bag"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value(PRODUCT_NAME_BAG));
+        mockMvc.perform(get("/api/products/" + PRODUCT_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(PRODUCT_ID.toString()));
+        mockMvc.perform(get("/api/products/jastipers/" + USER_JASTIPER))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].jastiperId").value(USER_JASTIPER));
     }
 
     @Test
@@ -183,7 +197,6 @@ class ProductControllerTest {
         request.setStock(7);
         request.setOriginLocation(LOCATION_JAPAN);
         request.setPurchaseDate(LocalDate.of(2026, 3, 1));
-        request.setReturnDate(LocalDate.of(2026, 3, 8));
 
         Product updated = Product.builder()
                 .id(PRODUCT_ID)
@@ -193,7 +206,6 @@ class ProductControllerTest {
                 .stock(7)
                 .originLocation(LOCATION_JAPAN)
                 .purchaseDate(LocalDate.of(2026, 3, 1))
-                .returnDate(LocalDate.of(2026, 3, 8))
                 .jastiperId(USER_JASTIPER)
                 .version(2L)
                 .build();
@@ -239,7 +251,6 @@ class ProductControllerTest {
         request.setStock(3);
         request.setOriginLocation(LOCATION_JAPAN);
         request.setPurchaseDate(LocalDate.of(2026, 4, 1));
-        request.setReturnDate(LocalDate.of(2026, 4, 8));
         Product updated = Product.builder()
                 .id(PRODUCT_ID)
                 .name("Updated")
@@ -248,7 +259,6 @@ class ProductControllerTest {
                 .stock(3)
                 .originLocation(LOCATION_JAPAN)
                 .purchaseDate(LocalDate.of(2026, 4, 1))
-                .returnDate(LocalDate.of(2026, 4, 8))
                 .jastiperId(USER_JASTIPER)
                 .build();
         when(productService.updateOwnedProduct(eq(PRODUCT_ID), any(ProductUpdateRequest.class), eq(USER_JASTIPER)))
@@ -286,6 +296,28 @@ class ProductControllerTest {
         when(productService.getById(PRODUCT_ID)).thenReturn(sampleProduct);
 
         mockMvc.perform(get("/api/products/inventory/" + PRODUCT_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(PRODUCT_ID.toString()));
+    }
+
+    @Test
+    @WithMockUser(username = "order-service", roles = "INTERNAL")
+    void recordCompletedOrderShouldDelegateForInternalRole() throws Exception {
+        when(productService.recordCompletedOrder(PRODUCT_ID)).thenReturn(sampleProduct);
+
+        mockMvc.perform(post("/api/products/inventory/" + PRODUCT_ID + "/completed-order"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(PRODUCT_ID.toString()));
+    }
+
+    @Test
+    @WithMockUser(username = "order-service", roles = "INTERNAL")
+    void recordProductRatingShouldDelegateForInternalRole() throws Exception {
+        when(productService.recordProductRating(PRODUCT_ID, 5)).thenReturn(sampleProduct);
+
+        mockMvc.perform(post("/api/products/inventory/" + PRODUCT_ID + "/rating")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"rating\":5}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(PRODUCT_ID.toString()));
     }
@@ -336,8 +368,7 @@ class ProductControllerTest {
                                   "price": 120.00,
                                   "stock": 0,
                                   "originLocation": "Japan",
-                                  "purchaseDate": "2026-03-01",
-                                  "returnDate": "2026-03-08"
+                                  "purchaseDate": "2026-03-01"
                                 }
                                 """))
                 .andExpect(status().isBadRequest())

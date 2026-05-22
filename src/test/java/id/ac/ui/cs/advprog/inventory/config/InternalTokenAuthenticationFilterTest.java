@@ -11,6 +11,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+@SuppressWarnings("PMD.AvoidDuplicateLiterals")
 class InternalTokenAuthenticationFilterTest {
 
     @AfterEach

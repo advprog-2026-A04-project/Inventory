@@ -15,6 +15,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import io.jsonwebtoken.JwtException;
 
+@SuppressWarnings("PMD.AvoidDuplicateLiterals")
 class JwtAuthenticationFilterTest {
 
     @AfterEach
